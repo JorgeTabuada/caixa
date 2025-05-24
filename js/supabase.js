@@ -10,20 +10,17 @@ let supabase;
 
 // Função para inicializar o cliente Supabase
 function initSupabase() {
-    if (typeof window.supabase !== 'undefined') {
-        // Usar o objeto global supabase diretamente
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Cliente Supabase inicializado com sucesso (método global)');
-    } else if (typeof supabaseClient !== 'undefined') {
-        // Fallback para supabaseClient se disponível
-        supabase = supabaseClient.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Cliente Supabase inicializado com sucesso (método cliente)');
-    } else if (typeof window.supabaseJs !== 'undefined') {
-        // Fallback para supabaseJs se disponível
+    if (typeof window.supabaseJs !== 'undefined' && typeof window.supabaseJs.createClient === 'function') {
         supabase = window.supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Cliente Supabase inicializado com sucesso (método JS)');
+        console.log('Supabase client initialized using window.supabaseJs.createClient');
+    } else if (typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function') { 
+        // Fallback for any existing global supabase object that might have been set up by other means,
+        // though the primary method (supabaseJs) is preferred.
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.warn('Supabase client initialized using a global window.supabase. Consider standardizing to supabaseJs.');
     } else {
-        console.error('Biblioteca Supabase não carregada. Verifique se o script do CDN está incluído.');
+        console.error('Supabase library (supabaseJs) not loaded or createClient function not found. Ensure Supabase CDN script is included and loaded correctly before this script.');
+        // Optionally, throw an error or handle this case more gracefully depending on application requirements.
     }
 }
 

@@ -9,10 +9,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-        // Garantir que o objeto supabase está disponível globalmente
-        window.supabase = window.supabaseJs || window.supabase;
-    </script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/app.js"></script>
@@ -54,7 +50,7 @@
                     <div class="file-upload" id="odoo-upload">
                         <i class="fas fa-file-excel file-upload-icon"></i>
                         <p class="file-upload-text">Arraste e solte o arquivo Odoo aqui ou clique para selecionar</p>
-                        <input type="file" id="odoo-file" class="hidden" accept=".xlsx, .xls">
+                        <input type="file" id="odoo-file" class="hidden" accept=".xlsx, .xls" title="Input do arquivo Odoo">
                         <button class="btn btn-primary">Selecionar Arquivo</button>
                     </div>
                     <div id="odoo-file-info" class="hidden">
@@ -69,7 +65,7 @@
                     <div class="file-upload" id="backoffice-upload">
                         <i class="fas fa-file-excel file-upload-icon"></i>
                         <p class="file-upload-text">Arraste e solte o arquivo Back Office aqui ou clique para selecionar</p>
-                        <input type="file" id="backoffice-file" class="hidden" accept=".xlsx, .xls">
+                        <input type="file" id="backoffice-file" class="hidden" accept=".xlsx, .xls" title="Input do arquivo Back Office">
                         <button class="btn btn-primary">Selecionar Arquivo</button>
                     </div>
                     <div id="backoffice-file-info" class="hidden">
@@ -152,7 +148,7 @@
                     <div class="file-upload" id="caixa-upload">
                         <i class="fas fa-file-excel file-upload-icon"></i>
                         <p class="file-upload-text">Arraste e solte o arquivo de Caixa aqui ou clique para selecionar</p>
-                        <input type="file" id="caixa-file" class="hidden" accept=".xlsx, .xls">
+                        <input type="file" id="caixa-file" class="hidden" accept=".xlsx, .xls" title="Input do arquivo de Caixa">
                         <button class="btn btn-primary">Selecionar Arquivo</button>
                     </div>
                     <div id="caixa-file-info" class="hidden">

@@ -8,10 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-        // Garantir que o objeto supabase está disponível globalmente
-        window.supabase = window.supabaseJs || window.supabase;
-    </script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
 </head>
@@ -26,12 +22,12 @@
             <form id="login-form" class="login-form">
                 <div class="form-group">
                     <label for="email" class="form-label">Email</label>
-                    <input type="email" id="email" class="form-control" placeholder="Seu email" required>
+                    <input type="email" id="email" class="form-control" placeholder="Seu email" required title="Endereço de email">
                 </div>
                 
                 <div class="form-group">
                     <label for="password" class="form-label">Password</label>
-                    <input type="password" id="password" class="form-control" placeholder="Sua password" required>
+                    <input type="password" id="password" class="form-control" placeholder="Sua password" required title="Senha">
                 </div>
                 
                 <div id="login-error" class="status-error mb-10" style="display: none;"></div>
