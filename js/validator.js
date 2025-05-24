@@ -678,6 +678,36 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Adicionar eventos para fechar modais
+    document.querySelectorAll('.modal-close-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            // Obter o modal pai
+            const modalOverlay = this.closest('.modal-overlay');
+            if (modalOverlay) {
+                modalOverlay.style.display = 'none';
+            }
+        });
+    });
+    
+    // Adicionar eventos para fechar modais ao clicar fora
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function(e) {
+            // Fechar apenas se clicou diretamente no overlay (não em seus filhos)
+            if (e.target === this) {
+                this.style.display = 'none';
+            }
+        });
+    });
+    
+    // Adicionar eventos para tecla ESC fechar modais
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal-overlay').forEach(overlay => {
+                overlay.style.display = 'none';
+            });
+        }
+    });
+    
     // Exportar funções para uso global
     window.validator = {
         initCaixaValidation: initCaixaValidation,
