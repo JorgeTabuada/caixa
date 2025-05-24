@@ -93,11 +93,13 @@ function initApp() {
     
     // Configurar botão de processamento
     const processFilesBtn = document.getElementById('process-files-btn');
-    if (processFilesBtn) {
+    if (processFilesBtn && !processFilesBtn.hasAttribute('data-listener-attached')) {
         processFilesBtn.addEventListener('click', () => {
             // Implementar lógica de processamento de arquivos
-            console.log('Processando arquivos...');
+            console.log('Processando arquivos...'); 
+            // Any actual file processing logic associated with this button would go here.
         });
+        processFilesBtn.setAttribute('data-listener-attached', 'true');
     }
     
     // Verificar se ambos os arquivos foram selecionados para habilitar o botão de processamento

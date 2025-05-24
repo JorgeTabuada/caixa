@@ -6,30 +6,48 @@ const SUPABASE_URL = 'https://uvcmgzhwiibjcygqsjrm.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2Y21nemh3aWliamN5Z3FzanJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNDE3NTUsImV4cCI6MjA2MzYxNzc1NX0.br9Ah2nlwNNfigdLo8uSWgWavZU4wlvWMxDMyClQVoQ';
 
 // Inicializar o cliente Supabase
-let supabase;
+let supabase = null; // Module-scoped client instance
 
 // Função para inicializar o cliente Supabase
 function initSupabase() {
+    if (supabase) {
+        // console.log('Supabase client already initialized.');
+        return supabase;
+    }
+
     if (typeof window.supabaseJs !== 'undefined' && typeof window.supabaseJs.createClient === 'function') {
         supabase = window.supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase client initialized using window.supabaseJs.createClient');
-    } else if (typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function') { 
-        // Fallback for any existing global supabase object that might have been set up by other means,
-        // though the primary method (supabaseJs) is preferred.
+        console.log('Supabase client initialized successfully using window.supabaseJs.createClient.');
+    } else if (typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function') {
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.warn('Supabase client initialized using a global window.supabase. Consider standardizing to supabaseJs.');
+        console.warn('Supabase client initialized using a global window.supabase. This is a fallback; investigate if window.supabaseJs is not available.');
     } else {
-        console.error('Supabase library (supabaseJs) not loaded or createClient function not found. Ensure Supabase CDN script is included and loaded correctly before this script.');
-        // Optionally, throw an error or handle this case more gracefully depending on application requirements.
+        console.error('Supabase library (supabaseJs or a valid global supabase) not loaded or createClient function not found.');
+        return null;
     }
+    return supabase;
 }
 
-// Inicializar quando o documento estiver pronto
-document.addEventListener('DOMContentLoaded', function() {
-    initSupabase();
-});
-
 // Funções para interagir com o Supabase
+
+// Expor funções globalmente
+window.supabaseUtils = {
+    initSupabase,
+    getClient: () => supabase, // Add getClient
+    createImportBatch,
+    importSalesOrders,
+    importDeliveries,
+    importCashRecords,
+    saveComparisonResults,
+    saveValidationResults,
+    saveExportData,
+    getSalesOrders,
+    getDeliveries,
+    getCashRecords,
+    getComparisonResults,
+    getValidationResults,
+    getImportBatches
+};
 
 /**
  * Cria um novo lote de importação
@@ -38,8 +56,8 @@ document.addEventListener('DOMContentLoaded', function() {
  */
 async function createImportBatch(batchInfo) {
     if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
-        return null;
+        console.error('Supabase client not initialized in createImportBatch. Call supabaseUtils.initSupabase() first.');
+        return null; 
     }
 
     const { data, error } = await supabase
@@ -70,8 +88,8 @@ async function createImportBatch(batchInfo) {
  */
 async function importSalesOrders(salesData, batchId) {
     if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
-        return { count: 0 };
+        console.error('Supabase client not initialized in importSalesOrders. Call supabaseUtils.initSupabase() first.');
+        return { count: 0, error: new Error('Supabase client not initialized.') };
     }
 
     if (!salesData || salesData.length === 0) {
@@ -126,8 +144,8 @@ async function importSalesOrders(salesData, batchId) {
  */
 async function importDeliveries(deliveriesData, batchId) {
     if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
-        return { count: 0 };
+        console.error('Supabase client not initialized in importDeliveries. Call supabaseUtils.initSupabase() first.');
+        return { count: 0, error: new Error('Supabase client not initialized.') };
     }
 
     if (!deliveriesData || deliveriesData.length === 0) {
@@ -178,8 +196,8 @@ async function importDeliveries(deliveriesData, batchId) {
  */
 async function importCashRecords(cashData, batchId) {
     if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
-        return { count: 0 };
+        console.error('Supabase client not initialized in importCashRecords. Call supabaseUtils.initSupabase() first.');
+        return { count: 0, error: new Error('Supabase client not initialized.') };
     }
 
     if (!cashData || cashData.length === 0) {
@@ -230,8 +248,8 @@ async function importCashRecords(cashData, batchId) {
  */
 async function saveComparisonResults(comparisonResults, batchId) {
     if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
-        return { count: 0 };
+        console.error('Supabase client not initialized in saveComparisonResults. Call supabaseUtils.initSupabase() first.');
+        return { count: 0, error: new Error('Supabase client not initialized.') };
     }
 
     if (!comparisonResults || comparisonResults.length === 0) {
@@ -290,8 +308,8 @@ async function saveComparisonResults(comparisonResults, batchId) {
  */
 async function saveValidationResults(validationResults, batchId) {
     if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
-        return { count: 0 };
+        console.error('Supabase client not initialized in saveValidationResults. Call supabaseUtils.initSupabase() first.');
+        return { count: 0, error: new Error('Supabase client not initialized.') };
     }
 
     if (!validationResults || validationResults.length === 0) {
@@ -351,7 +369,7 @@ async function saveValidationResults(validationResults, batchId) {
  */
 async function saveExportData(exportData) {
     if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
+        console.error('Supabase client not initialized in saveExportData. Call supabaseUtils.initSupabase() first.');
         return null;
     }
 
@@ -380,7 +398,7 @@ async function saveExportData(exportData) {
  */
 async function getSalesOrders(batchId = null) {
     if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
+        console.error('Supabase client not initialized in getSalesOrders. Call supabaseUtils.initSupabase() first.');
         return [];
     }
 
@@ -409,7 +427,7 @@ async function getSalesOrders(batchId = null) {
  */
 async function getDeliveries(batchId = null) {
     if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
+        console.error('Supabase client not initialized in getDeliveries. Call supabaseUtils.initSupabase() first.');
         return [];
     }
 
@@ -438,7 +456,7 @@ async function getDeliveries(batchId = null) {
  */
 async function getCashRecords(batchId = null) {
     if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
+        console.error('Supabase client not initialized in getCashRecords. Call supabaseUtils.initSupabase() first.');
         return [];
     }
 
@@ -466,7 +484,7 @@ async function getCashRecords(batchId = null) {
  */
 async function getComparisonResults() {
     if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
+        console.error('Supabase client not initialized in getComparisonResults. Call supabaseUtils.initSupabase() first.');
         return [];
     }
 
@@ -492,7 +510,7 @@ async function getComparisonResults() {
  */
 async function getValidationResults() {
     if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
+        console.error('Supabase client not initialized in getValidationResults. Call supabaseUtils.initSupabase() first.');
         return [];
     }
 
@@ -518,7 +536,7 @@ async function getValidationResults() {
  */
 async function getImportBatches() {
     if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
+        console.error('Supabase client not initialized in getImportBatches. Call supabaseUtils.initSupabase() first.');
         return [];
     }
 
@@ -535,20 +553,3 @@ async function getImportBatches() {
     return data;
 }
 
-// Expor funções globalmente
-window.supabaseUtils = {
-    initSupabase,
-    createImportBatch,
-    importSalesOrders,
-    importDeliveries,
-    importCashRecords,
-    saveComparisonResults,
-    saveValidationResults,
-    saveExportData,
-    getSalesOrders,
-    getDeliveries,
-    getCashRecords,
-    getComparisonResults,
-    getValidationResults,
-    getImportBatches
-};
