@@ -8,6 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase Utils -->
+    <script src="js/supabase.js"></script>
 </head>
 <body>
     <!-- Cabeçalho -->
@@ -318,87 +322,78 @@
                 
                 <div class="card mb-20">
                     <div class="card-header">
-                        <h3 class="card-title">Resumo da Exportação</h3>
+                        <h3 class="card-title">Exportar para Excel</h3>
                     </div>
                     <div class="card-body">
-                        <div class="flex flex-between mb-10">
-                            <div>
-                                <p>Total de registros: <strong id="export-count">0</strong></p>
-                            </div>
-                            <div>
-                                <p>Data: <strong id="export-date">--/--/----</strong></p>
-                            </div>
+                        <p>Exporte os dados processados para um arquivo Excel.</p>
+                        <div class="flex flex-center mt-20">
+                            <button id="export-excel-btn" class="btn btn-primary">Exportar para Excel</button>
                         </div>
                     </div>
                 </div>
-
+                
                 <div class="card">
                     <div class="card-header">
-                        <h3 class="card-title">Registros para Exportação</h3>
+                        <h3 class="card-title">Exportar para Supabase</h3>
                     </div>
-                    <div class="table-container">
-                        <table class="table" id="export-table">
-                            <thead>
-                                <tr>
-                                    <th>Matrícula</th>
-                                    <th>Condutor</th>
-                                    <th>Método Pagamento</th>
-                                    <th>Preço Booking</th>
-                                    <th>Preço na Entrega</th>
-                                    <th>Diferença</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Dados serão inseridos via JavaScript -->
-                                <tr>
-                                    <td colspan="7" class="text-center">Nenhum dado disponível para exportação.</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="card-body">
+                        <p>Exporte os dados processados para a base de dados Supabase.</p>
+                        <div class="flex flex-center mt-20">
+                            <button id="export-supabase-btn" class="btn btn-primary">Exportar para Supabase</button>
+                        </div>
                     </div>
-                </div>
-
-                <div class="flex flex-center mt-20">
-                    <button id="export-btn" class="btn btn-primary">Exportar para Excel</button>
                 </div>
             </section>
         </main>
     </div>
 
     <!-- Modais -->
+    <!-- Modal de Detalhes da Entrega -->
     <div class="modal-overlay" id="details-modal-overlay">
         <div class="modal">
             <div class="modal-header">
-                <h3 class="modal-title">Detalhes do Registro</h3>
-                <button class="modal-close">&times;</button>
+                <h3>Detalhes da Entrega</h3>
+                <button class="modal-close-btn">&times;</button>
             </div>
             <div class="modal-body" id="details-modal-body">
                 <!-- Conteúdo será inserido via JavaScript -->
             </div>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="edit-modal-overlay">
-        <div class="modal">
-            <div class="modal-header">
-                <h3 class="modal-title">Resolver Inconsistência</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body" id="edit-modal-body">
-                <!-- Conteúdo será inserido via JavaScript -->
+            <div class="modal-footer">
+                <button class="btn btn-secondary modal-close-btn">Fechar</button>
             </div>
         </div>
     </div>
 
-    <div class="modal-overlay" id="validate-modal-overlay">
+    <!-- Modal de Validação de Entrega -->
+    <div class="modal-overlay" id="validate-delivery-modal-overlay">
         <div class="modal">
             <div class="modal-header">
-                <h3 class="modal-title">Validar Entrega</h3>
-                <button class="modal-close">&times;</button>
+                <h3>Validar Entrega</h3>
+                <button class="modal-close-btn">&times;</button>
             </div>
-            <div class="modal-body" id="validate-modal-body">
+            <div class="modal-body" id="validate-delivery-modal-body">
                 <!-- Conteúdo será inserido via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary modal-close-btn">Cancelar</button>
+                <button class="btn btn-primary" id="confirm-validate-btn">Validar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Correção de Entrega -->
+    <div class="modal-overlay" id="correct-delivery-modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Corrigir Entrega</h3>
+                <button class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body" id="correct-delivery-modal-body">
+                <!-- Conteúdo será inserido via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary modal-close-btn">Cancelar</button>
+                <button class="btn btn-primary" id="confirm-correction-btn">Salvar Correção</button>
             </div>
         </div>
     </div>

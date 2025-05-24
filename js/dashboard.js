@@ -1,14 +1,18 @@
 // Dashboard e Estatísticas
 document.addEventListener('DOMContentLoaded', function() {
-    // Elementos do dashboard
+    // Elementos da interface de dashboard
+    const entregasEfetuadasElement = document.getElementById('entregas-efetuadas');
+    const entregasPrevistasElement = document.getElementById('entregas-previstas');
+    const percentualEntregasElement = document.getElementById('percentual-entregas');
+    
     const totalCaixaElement = document.getElementById('total-caixa');
     const totalNumerarioElement = document.getElementById('total-numerario');
     const totalMultibancoElement = document.getElementById('total-multibanco');
-    const totalNopayElement = document.getElementById('total-nopay');
+    const totalNoPayElement = document.getElementById('total-nopay');
     
     const countNumerarioElement = document.getElementById('count-numerario');
     const countMultibancoElement = document.getElementById('count-multibanco');
-    const countNopayElement = document.getElementById('count-nopay');
+    const countNoPayElement = document.getElementById('count-nopay');
     const countTotalElement = document.getElementById('count-total');
     
     const previstoBOElement = document.getElementById('previsto-bo');
@@ -16,386 +20,396 @@ document.addEventListener('DOMContentLoaded', function() {
     const efetivaCaixaElement = document.getElementById('efetiva-caixa');
     const diferencaCaixaElement = document.getElementById('diferenca-caixa');
     
-    const allDeliveriesTable = document.getElementById('all-deliveries-table').querySelector('tbody');
-    
-    // Elementos para estatísticas adicionais
-    const entregasEfetuadasElement = document.getElementById('entregas-efetuadas');
-    const entregasPrevistasElement = document.getElementById('entregas-previstas');
-    const percentualEntregasElement = document.getElementById('percentual-entregas');
-    
-    // Elemento para estatísticas por condutor
     const condutorStatsContainer = document.getElementById('condutor-stats-container');
+    const allDeliveriesTable = document.getElementById('all-deliveries-table').querySelector('tbody');
     
     // Variáveis para armazenar dados
     let deliveryData = [];
-    let allReservations = []; // Para armazenar todas as reservas (entregues e não entregues)
-    let dashboardStats = {
-        totalCaixa: 0,
-        totalNumerario: 0,
-        totalMultibanco: 0,
-        totalNopay: 0,
-        
-        countNumerario: 0,
-        countMultibanco: 0,
-        countNopay: 0,
-        countTotal: 0,
-        
-        previstoBO: 0,
-        previstoOdoo: 0,
-        efetivaCaixa: 0,
-        
-        entregasEfetuadas: 0,
-        entregasPrevistas: 0,
-        
-        byBrand: {},
-        byPaymentMethod: {},
-        byDriver: {},
-        
-        notDelivered: [] // Reservas não entregues
-    };
+    let comparisonData = [];
     
-    // Função para definir dados de entregas
+    // Função para inicializar dashboard
+    function initDashboard() {
+        // Verificar se há dados disponíveis no Supabase
+        if (window.supabaseUtils) {
+            console.log('Verificando dados no Supabase...');
+            
+            window.supabaseUtils.getDeliveries().then(res => {
+                if (res.data && res.data.length > 0) {
+                    console.log('Dados encontrados no Supabase:', res.data);
+                    
+                    // Perguntar ao usuário se deseja carregar dados do Supabase
+                    if (confirm('Foram encontrados dados armazenados no Supabase. Deseja carregá-los?')) {
+                        // Usar dados do Supabase
+                        setDeliveryData(res.data);
+                        return;
+                    }
+                }
+                
+                // Se não houver dados no Supabase ou o usuário não quiser carregá-los,
+                // continuar com o fluxo normal
+                console.log('Usando dados locais para o dashboard');
+            }).catch(error => {
+                console.error('Erro ao buscar dados do Supabase:', error);
+            });
+        }
+    }
+    
+    // Função para definir dados de entrega
     function setDeliveryData(data) {
         deliveryData = data;
         
-        // Obter dados de comparação para estatísticas de entregas previstas
-        const comparisonResults = window.comparator ? window.comparator.getResults() : null;
-        if (comparisonResults) {
-            allReservations = comparisonResults.all || [];
-        }
-        
-        // Calcular estatísticas
-        calculateStats();
+        // Obter dados de comparação
+        comparisonData = window.comparator ? window.comparator.getResults() : { all: [], inconsistent: [], missing: [] };
         
         // Renderizar dashboard
         renderDashboard();
-        
-        // Preparar dados para exportação
-        prepareExportData();
-    }
-    
-    // Função para calcular estatísticas
-    function calculateStats() {
-        // Resetar estatísticas
-        dashboardStats = {
-            totalCaixa: 0,
-            totalNumerario: 0,
-            totalMultibanco: 0,
-            totalNopay: 0,
-            
-            countNumerario: 0,
-            countMultibanco: 0,
-            countNopay: 0,
-            countTotal: 0,
-            
-            previstoBO: 0,
-            previstoOdoo: 0,
-            efetivaCaixa: 0,
-            
-            entregasEfetuadas: 0,
-            entregasPrevistas: allReservations.length,
-            
-            byBrand: {},
-            byPaymentMethod: {},
-            byDriver: {},
-            
-            notDelivered: []
-        };
-        
-        // Criar mapa de entregas por matrícula (insensível a maiúsculas/minúsculas)
-        const deliveryMap = new Map();
-        deliveryData.forEach(delivery => {
-            if (delivery.licensePlate) {
-                deliveryMap.set(delivery.licensePlate.toString().toLowerCase(), delivery);
-            }
-        });
-        
-        // Identificar reservas não entregues
-        if (allReservations.length > 0) {
-            allReservations.forEach(reservation => {
-                if (!reservation.licensePlate) return;
-                
-                const licensePlateLower = reservation.licensePlate.toString().toLowerCase();
-                const isDelivered = deliveryMap.has(licensePlateLower);
-                
-                if (!isDelivered) {
-                    // Adicionar à lista de reservas não entregues
-                    dashboardStats.notDelivered.push({
-                        licensePlate: reservation.licensePlate,
-                        alocation: reservation.alocation || 'N/A',
-                        inOdoo: !!reservation.odooRecord,
-                        inBackOffice: !!reservation.boRecord,
-                        bookingPriceBO: reservation.bookingPriceBO || 'N/A',
-                        bookingPriceOdoo: reservation.bookingPriceOdoo || 'N/A',
-                        parkBrand: reservation.parkBrand || 'N/A'
-                    });
-                }
-            });
-        }
-        
-        // Processar cada entrega
-        deliveryData.forEach(delivery => {
-            // Contar apenas entregas validadas ou com resolução
-            if (delivery.status === 'validated' || delivery.resolution) {
-                // Totais por método de pagamento
-                if (delivery.paymentMethod === 'numerário') {
-                    dashboardStats.totalNumerario += parseFloat(delivery.priceOnDelivery) || 0;
-                    dashboardStats.countNumerario++;
-                } else if (delivery.paymentMethod === 'multibanco') {
-                    dashboardStats.totalMultibanco += parseFloat(delivery.priceOnDelivery) || 0;
-                    dashboardStats.countMultibanco++;
-                } else if (delivery.paymentMethod === 'no pay') {
-                    dashboardStats.countNopay++;
-                }
-                
-                // Total da caixa (excluindo no pay)
-                if (delivery.paymentMethod !== 'no pay') {
-                    dashboardStats.totalCaixa += parseFloat(delivery.priceOnDelivery) || 0;
-                }
-                
-                // Contagem total
-                dashboardStats.countTotal++;
-                dashboardStats.entregasEfetuadas++;
-                
-                // Estatísticas por marca
-                const brand = delivery.parkBrand || 'Desconhecido';
-                if (!dashboardStats.byBrand[brand]) {
-                    dashboardStats.byBrand[brand] = {
-                        count: 0,
-                        total: 0
-                    };
-                }
-                dashboardStats.byBrand[brand].count++;
-                if (delivery.paymentMethod !== 'no pay') {
-                    dashboardStats.byBrand[brand].total += parseFloat(delivery.priceOnDelivery) || 0;
-                }
-                
-                // Estatísticas por método de pagamento
-                const method = delivery.paymentMethod || 'Desconhecido';
-                if (!dashboardStats.byPaymentMethod[method]) {
-                    dashboardStats.byPaymentMethod[method] = {
-                        count: 0,
-                        total: 0
-                    };
-                }
-                dashboardStats.byPaymentMethod[method].count++;
-                if (method !== 'no pay') {
-                    dashboardStats.byPaymentMethod[method].total += parseFloat(delivery.priceOnDelivery) || 0;
-                }
-                
-                // Estatísticas por condutor
-                const driver = delivery.condutorEntrega || 'Desconhecido';
-                if (!dashboardStats.byDriver[driver]) {
-                    dashboardStats.byDriver[driver] = {
-                        count: 0,
-                        total: 0,
-                        numerario: { count: 0, total: 0 },
-                        multibanco: { count: 0, total: 0 },
-                        nopay: { count: 0, total: 0 }
-                    };
-                }
-                
-                dashboardStats.byDriver[driver].count++;
-                
-                if (delivery.paymentMethod === 'numerário') {
-                    dashboardStats.byDriver[driver].numerario.count++;
-                    dashboardStats.byDriver[driver].numerario.total += parseFloat(delivery.priceOnDelivery) || 0;
-                    dashboardStats.byDriver[driver].total += parseFloat(delivery.priceOnDelivery) || 0;
-                } else if (delivery.paymentMethod === 'multibanco') {
-                    dashboardStats.byDriver[driver].multibanco.count++;
-                    dashboardStats.byDriver[driver].multibanco.total += parseFloat(delivery.priceOnDelivery) || 0;
-                    dashboardStats.byDriver[driver].total += parseFloat(delivery.priceOnDelivery) || 0;
-                } else if (delivery.paymentMethod === 'no pay') {
-                    dashboardStats.byDriver[driver].nopay.count++;
-                }
-            }
-            
-            // Valores previstos
-            if (delivery.validatedRecord) {
-                dashboardStats.previstoBO += parseFloat(delivery.validatedRecord.bookingPriceBO) || 0;
-                dashboardStats.previstoOdoo += parseFloat(delivery.validatedRecord.bookingPriceOdoo) || 0;
-            }
-            
-            // Valor efetivo da caixa
-            if (delivery.status === 'validated' && delivery.paymentMethod !== 'no pay') {
-                dashboardStats.efetivaCaixa += parseFloat(delivery.priceOnDelivery) || 0;
-            }
-        });
-        
-        console.log('Estatísticas calculadas:', dashboardStats);
     }
     
     // Função para renderizar dashboard
     function renderDashboard() {
-        // Atualizar totais
-        totalCaixaElement.textContent = formatCurrency(dashboardStats.totalCaixa);
-        totalNumerarioElement.textContent = formatCurrency(dashboardStats.totalNumerario);
-        totalMultibancoElement.textContent = formatCurrency(dashboardStats.totalMultibanco);
-        totalNopayElement.textContent = formatCurrency(dashboardStats.totalNopay);
-        
-        // Atualizar contagens
-        countNumerarioElement.textContent = dashboardStats.countNumerario;
-        countMultibancoElement.textContent = dashboardStats.countMultibanco;
-        countNopayElement.textContent = dashboardStats.countNopay;
-        countTotalElement.textContent = dashboardStats.countTotal;
-        
-        // Atualizar comparativo
-        previstoBOElement.textContent = formatCurrency(dashboardStats.previstoBO);
-        previstoOdooElement.textContent = formatCurrency(dashboardStats.previstoOdoo);
-        efetivaCaixaElement.textContent = formatCurrency(dashboardStats.efetivaCaixa);
-        
-        // Calcular diferença
-        const diferenca = dashboardStats.efetivaCaixa - dashboardStats.previstoBO;
-        diferencaCaixaElement.textContent = formatCurrency(diferenca);
-        diferencaCaixaElement.classList.remove('status-error', 'status-success');
-        diferencaCaixaElement.classList.add(diferenca < 0 ? 'status-error' : 'status-success');
-        
-        // Atualizar estatísticas de entregas efetuadas vs previstas
-        entregasEfetuadasElement.textContent = dashboardStats.entregasEfetuadas;
-        entregasPrevistasElement.textContent = dashboardStats.entregasPrevistas;
-        
-        // Calcular percentual de entregas
-        const percentual = dashboardStats.entregasPrevistas > 0 
-            ? (dashboardStats.entregasEfetuadas / dashboardStats.entregasPrevistas * 100).toFixed(1) 
-            : 0;
-        percentualEntregasElement.textContent = percentual + '%';
-        percentualEntregasElement.classList.remove('status-error', 'status-warning', 'status-success');
-        
-        if (percentual < 70) {
-            percentualEntregasElement.classList.add('status-error');
-        } else if (percentual < 90) {
-            percentualEntregasElement.classList.add('status-warning');
-        } else {
-            percentualEntregasElement.classList.add('status-success');
+        if (!deliveryData || deliveryData.length === 0) {
+            console.warn('Nenhum dado de entrega disponível para o dashboard.');
+            return;
         }
         
-        // Renderizar estatísticas por condutor
-        renderDriverStats();
+        // Calcular estatísticas
+        const stats = calculateStats();
+        
+        // Atualizar elementos da interface
+        updateDashboardUI(stats);
         
         // Renderizar gráficos
-        renderCharts();
+        renderCharts(stats);
         
         // Renderizar tabela de todas as entregas
         renderAllDeliveriesTable();
     }
     
+    // Função para calcular estatísticas
+    function calculateStats() {
+        // Estatísticas de entregas
+        const entregasEfetuadas = deliveryData.length;
+        const entregasPrevistas = comparisonData.all ? comparisonData.all.length : 0;
+        const percentualEntregas = entregasPrevistas > 0 ? Math.round((entregasEfetuadas / entregasPrevistas) * 100) : 0;
+        
+        // Estatísticas de valores
+        let totalCaixa = 0;
+        let totalNumerario = 0;
+        let totalMultibanco = 0;
+        let totalNoPay = 0;
+        
+        let countNumerario = 0;
+        let countMultibanco = 0;
+        let countNoPay = 0;
+        
+        // Estatísticas por condutor
+        const condutorStats = {};
+        
+        // Estatísticas por marca
+        const marcaStats = {};
+        
+        // Estatísticas por método de pagamento
+        const paymentMethodStats = {};
+        
+        // Calcular estatísticas
+        deliveryData.forEach(delivery => {
+            const price = parseFloat(delivery.priceOnDelivery) || 0;
+            
+            // Total da caixa
+            totalCaixa += price;
+            
+            // Por método de pagamento
+            const paymentMethod = delivery.paymentMethod ? delivery.paymentMethod.toLowerCase() : '';
+            
+            if (paymentMethod.includes('numerario') || paymentMethod.includes('numerário') || paymentMethod === 'cash') {
+                totalNumerario += price;
+                countNumerario++;
+            } else if (paymentMethod.includes('multibanco') || paymentMethod.includes('card') || paymentMethod === 'mb') {
+                totalMultibanco += price;
+                countMultibanco++;
+            } else if (paymentMethod.includes('no pay') || paymentMethod === 'nopay') {
+                totalNoPay += price;
+                countNoPay++;
+            }
+            
+            // Por condutor
+            const condutor = delivery.condutorEntrega || 'Desconhecido';
+            if (!condutorStats[condutor]) {
+                condutorStats[condutor] = {
+                    count: 0,
+                    total: 0,
+                    numerario: 0,
+                    multibanco: 0,
+                    nopay: 0
+                };
+            }
+            
+            condutorStats[condutor].count++;
+            condutorStats[condutor].total += price;
+            
+            if (paymentMethod.includes('numerario') || paymentMethod.includes('numerário') || paymentMethod === 'cash') {
+                condutorStats[condutor].numerario += price;
+            } else if (paymentMethod.includes('multibanco') || paymentMethod.includes('card') || paymentMethod === 'mb') {
+                condutorStats[condutor].multibanco += price;
+            } else if (paymentMethod.includes('no pay') || paymentMethod === 'nopay') {
+                condutorStats[condutor].nopay += price;
+            }
+            
+            // Por marca
+            const marca = delivery.parkBrand || (delivery.validatedRecord ? delivery.validatedRecord.parkBrand : 'Desconhecida');
+            if (!marcaStats[marca]) {
+                marcaStats[marca] = {
+                    count: 0,
+                    total: 0
+                };
+            }
+            
+            marcaStats[marca].count++;
+            marcaStats[marca].total += price;
+            
+            // Por método de pagamento
+            const methodKey = paymentMethod || 'Desconhecido';
+            if (!paymentMethodStats[methodKey]) {
+                paymentMethodStats[methodKey] = {
+                    count: 0,
+                    total: 0
+                };
+            }
+            
+            paymentMethodStats[methodKey].count++;
+            paymentMethodStats[methodKey].total += price;
+        });
+        
+        // Calcular valores previstos
+        let previstoBo = 0;
+        let previstoOdoo = 0;
+        
+        if (comparisonData.all) {
+            comparisonData.all.forEach(record => {
+                previstoBo += parseFloat(record.bookingPriceBO) || 0;
+                previstoOdoo += parseFloat(record.bookingPriceOdoo) || 0;
+            });
+        }
+        
+        // Calcular diferença
+        const diferenca = totalCaixa - previstoBo;
+        
+        return {
+            entregasEfetuadas,
+            entregasPrevistas,
+            percentualEntregas,
+            totalCaixa,
+            totalNumerario,
+            totalMultibanco,
+            totalNoPay,
+            countNumerario,
+            countMultibanco,
+            countNoPay,
+            countTotal: entregasEfetuadas,
+            previstoBo,
+            previstoOdoo,
+            efetivaCaixa: totalCaixa,
+            diferenca,
+            condutorStats,
+            marcaStats,
+            paymentMethodStats
+        };
+    }
+    
+    // Função para atualizar interface do dashboard
+    function updateDashboardUI(stats) {
+        // Atualizar estatísticas de entregas
+        entregasEfetuadasElement.textContent = stats.entregasEfetuadas;
+        entregasPrevistasElement.textContent = stats.entregasPrevistas;
+        percentualEntregasElement.textContent = stats.percentualEntregas + '%';
+        
+        // Atualizar classe de status do percentual
+        if (stats.percentualEntregas >= 90) {
+            percentualEntregasElement.className = 'status-success';
+        } else if (stats.percentualEntregas >= 70) {
+            percentualEntregasElement.className = 'status-warning';
+        } else {
+            percentualEntregasElement.className = 'status-error';
+        }
+        
+        // Atualizar estatísticas de valores
+        totalCaixaElement.textContent = formatCurrency(stats.totalCaixa);
+        totalNumerarioElement.textContent = formatCurrency(stats.totalNumerario);
+        totalMultibancoElement.textContent = formatCurrency(stats.totalMultibanco);
+        totalNoPayElement.textContent = formatCurrency(stats.totalNoPay);
+        
+        // Atualizar estatísticas de contagem
+        countNumerarioElement.textContent = stats.countNumerario;
+        countMultibancoElement.textContent = stats.countMultibanco;
+        countNoPayElement.textContent = stats.countNoPay;
+        countTotalElement.textContent = stats.countTotal;
+        
+        // Atualizar estatísticas comparativas
+        previstoBOElement.textContent = formatCurrency(stats.previstoBo);
+        previstoOdooElement.textContent = formatCurrency(stats.previstoOdoo);
+        efetivaCaixaElement.textContent = formatCurrency(stats.efetivaCaixa);
+        diferencaCaixaElement.textContent = formatCurrency(stats.diferenca);
+        
+        // Atualizar classe de status da diferença
+        if (stats.diferenca === 0) {
+            diferencaCaixaElement.className = 'status-success';
+        } else if (Math.abs(stats.diferenca) <= 10) {
+            diferencaCaixaElement.className = 'status-warning';
+        } else {
+            diferencaCaixaElement.className = 'status-error';
+        }
+        
+        // Atualizar estatísticas por condutor
+        renderCondutorStats(stats.condutorStats);
+    }
+    
     // Função para renderizar estatísticas por condutor
-    function renderDriverStats() {
+    function renderCondutorStats(condutorStats) {
         // Limpar container
         condutorStatsContainer.innerHTML = '';
         
-        // Verificar se há dados de condutores
-        if (Object.keys(dashboardStats.byDriver).length === 0) {
+        // Verificar se há dados
+        if (Object.keys(condutorStats).length === 0) {
             condutorStatsContainer.innerHTML = '<p class="text-center">Nenhum dado de condutor disponível.</p>';
             return;
         }
         
-        // Criar tabela para cada condutor
-        Object.keys(dashboardStats.byDriver).forEach(driver => {
-            const driverData = dashboardStats.byDriver[driver];
+        // Criar tabela
+        const table = document.createElement('table');
+        table.className = 'table';
+        
+        // Criar cabeçalho
+        const thead = document.createElement('thead');
+        thead.innerHTML = `
+            <tr>
+                <th>Condutor</th>
+                <th>Entregas</th>
+                <th>Total</th>
+                <th>Numerário</th>
+                <th>Multibanco</th>
+                <th>No Pay</th>
+            </tr>
+        `;
+        table.appendChild(thead);
+        
+        // Criar corpo da tabela
+        const tbody = document.createElement('tbody');
+        
+        // Adicionar linha para cada condutor
+        Object.keys(condutorStats).forEach(condutor => {
+            const stats = condutorStats[condutor];
             
-            const driverCard = document.createElement('div');
-            driverCard.className = 'card mb-20';
-            
-            driverCard.innerHTML = `
-                <div class="card-header">
-                    <h3 class="card-title">Condutor: ${driver}</h3>
-                </div>
-                <div class="card-body">
-                    <div class="flex flex-between">
-                        <div>
-                            <p>Total de Entregas: <strong>${driverData.count}</strong></p>
-                            <p>Total em Numerário: <strong>${driverData.numerario.count}</strong> (${formatCurrency(driverData.numerario.total)})</p>
-                            <p>Total em Multibanco: <strong>${driverData.multibanco.count}</strong> (${formatCurrency(driverData.multibanco.total)})</p>
-                            <p>Total No Pay: <strong>${driverData.nopay.count}</strong></p>
-                        </div>
-                        <div>
-                            <p>Valor Total: <strong>${formatCurrency(driverData.total)}</strong></p>
-                        </div>
-                    </div>
-                </div>
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${condutor}</td>
+                <td>${stats.count}</td>
+                <td>${formatCurrency(stats.total)}</td>
+                <td>${formatCurrency(stats.numerario)}</td>
+                <td>${formatCurrency(stats.multibanco)}</td>
+                <td>${formatCurrency(stats.nopay)}</td>
             `;
             
-            condutorStatsContainer.appendChild(driverCard);
+            tbody.appendChild(row);
         });
+        
+        table.appendChild(tbody);
+        condutorStatsContainer.appendChild(table);
     }
     
     // Função para renderizar gráficos
-    function renderCharts() {
-        // Limpar gráficos existentes
-        const chartBrands = Chart.getChart('chart-brands');
-        if (chartBrands) chartBrands.destroy();
+    function renderCharts(stats) {
+        // Gráfico de marcas
+        renderBrandsChart(stats.marcaStats);
         
-        const chartPayments = Chart.getChart('chart-payments');
-        if (chartPayments) chartPayments.destroy();
+        // Gráfico de métodos de pagamento
+        renderPaymentsChart(stats.paymentMethodStats);
+    }
+    
+    // Função para renderizar gráfico de marcas
+    function renderBrandsChart(marcaStats) {
+        const ctx = document.getElementById('chart-brands').getContext('2d');
         
-        // Gráfico por marca
-        const brandLabels = Object.keys(dashboardStats.byBrand);
-        const brandData = brandLabels.map(brand => dashboardStats.byBrand[brand].total);
+        // Destruir gráfico existente
+        if (window.brandsChart) {
+            window.brandsChart.destroy();
+        }
         
-        new Chart(document.getElementById('chart-brands'), {
-            type: 'bar',
+        // Preparar dados
+        const labels = Object.keys(marcaStats);
+        const data = labels.map(marca => marcaStats[marca].count);
+        
+        // Criar gráfico
+        window.brandsChart = new Chart(ctx, {
+            type: 'pie',
             data: {
-                labels: brandLabels,
+                labels: labels,
                 datasets: [{
-                    label: 'Total por Marca (€)',
-                    data: brandData,
+                    label: 'Entregas por Marca',
+                    data: data,
                     backgroundColor: [
-                        'rgba(26, 115, 232, 0.7)',
-                        'rgba(66, 133, 244, 0.7)',
-                        'rgba(13, 71, 161, 0.7)'
-                    ],
-                    borderColor: [
-                        'rgba(26, 115, 232, 1)',
-                        'rgba(66, 133, 244, 1)',
-                        'rgba(13, 71, 161, 1)'
-                    ],
-                    borderWidth: 1
+                        '#4CAF50',
+                        '#2196F3',
+                        '#FFC107',
+                        '#F44336',
+                        '#9C27B0',
+                        '#FF9800',
+                        '#795548',
+                        '#607D8B'
+                    ]
                 }]
             },
             options: {
                 responsive: true,
                 plugins: {
+                    legend: {
+                        position: 'right',
+                    },
                     title: {
                         display: true,
-                        text: 'Total por Marca'
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true
+                        text: 'Entregas por Marca'
                     }
                 }
             }
         });
+    }
+    
+    // Função para renderizar gráfico de métodos de pagamento
+    function renderPaymentsChart(paymentMethodStats) {
+        const ctx = document.getElementById('chart-payments').getContext('2d');
         
-        // Gráfico por método de pagamento
-        const methodLabels = Object.keys(dashboardStats.byPaymentMethod);
-        const methodData = methodLabels.map(method => dashboardStats.byPaymentMethod[method].count);
+        // Destruir gráfico existente
+        if (window.paymentsChart) {
+            window.paymentsChart.destroy();
+        }
         
-        new Chart(document.getElementById('chart-payments'), {
+        // Preparar dados
+        const labels = Object.keys(paymentMethodStats);
+        const data = labels.map(method => paymentMethodStats[method].count);
+        
+        // Criar gráfico
+        window.paymentsChart = new Chart(ctx, {
             type: 'pie',
             data: {
-                labels: methodLabels,
+                labels: labels,
                 datasets: [{
-                    label: 'Entregas por Método',
-                    data: methodData,
+                    label: 'Entregas por Método de Pagamento',
+                    data: data,
                     backgroundColor: [
-                        'rgba(52, 168, 83, 0.7)',
-                        'rgba(251, 188, 5, 0.7)',
-                        'rgba(234, 67, 53, 0.7)'
-                    ],
-                    borderColor: [
-                        'rgba(52, 168, 83, 1)',
-                        'rgba(251, 188, 5, 1)',
-                        'rgba(234, 67, 53, 1)'
-                    ],
-                    borderWidth: 1
+                        '#4CAF50',
+                        '#2196F3',
+                        '#FFC107',
+                        '#F44336',
+                        '#9C27B0',
+                        '#FF9800'
+                    ]
                 }]
             },
             options: {
                 responsive: true,
                 plugins: {
+                    legend: {
+                        position: 'right',
+                    },
                     title: {
                         display: true,
                         text: 'Entregas por Método de Pagamento'
@@ -412,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (deliveryData.length === 0) {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="7" class="text-center">Nenhuma entrega encontrada.</td>';
+            row.innerHTML = '<td colspan="7" class="text-center">Nenhum dado disponível.</td>';
             allDeliveriesTable.appendChild(row);
             return;
         }
@@ -422,14 +436,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const row = document.createElement('tr');
             
             // Adicionar classe de status
-            if (delivery.permanentInconsistency) {
-                // Inconsistência permanente (no pay sem campanha) sempre em vermelho
-                row.classList.add('status-error');
-            } else if (delivery.status === 'inconsistent' && !delivery.resolution) {
-                row.classList.add('status-error');
-            } else if (delivery.resolution && delivery.resolution !== 'confirmed' && delivery.resolution !== 'auto_validated') {
+            if (delivery.status === 'inconsistent') {
                 row.classList.add('status-warning');
-            } else if (delivery.status === 'validated' || delivery.resolution === 'confirmed' || delivery.resolution === 'auto_validated') {
+            } else if (delivery.status === 'validated') {
                 row.classList.add('status-success');
             }
             
@@ -438,73 +447,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>${delivery.alocation}</td>
                 <td>${delivery.licensePlate}</td>
                 <td>${delivery.checkOut}</td>
-                <td>${delivery.parkBrand || 'N/A'}</td>
+                <td>${delivery.parkBrand || (delivery.validatedRecord ? delivery.validatedRecord.parkBrand : '')}</td>
                 <td>${delivery.paymentMethod}</td>
                 <td>${delivery.priceOnDelivery} €</td>
-                <td>${getStatusText(delivery)}</td>
+                <td>${getStatusText(delivery.status)}</td>
             `;
             
             allDeliveriesTable.appendChild(row);
         });
     }
     
-    // Função para preparar dados para exportação
-    function prepareExportData() {
-        // Contar registros por status
-        const inconsistentCount = deliveryData.filter(d => 
-            (d.status === 'inconsistent' && !d.resolution) || d.permanentInconsistency
-        ).length;
-        
-        const correctedCount = deliveryData.filter(d => 
-            d.resolution && d.resolution !== 'confirmed' && d.resolution !== 'auto_validated'
-        ).length;
-        
-        const successCount = deliveryData.filter(d => 
-            (d.status === 'validated' || d.resolution === 'confirmed' || d.resolution === 'auto_validated') && 
-            !d.permanentInconsistency
-        ).length;
-        
-        // Atualizar contadores na seção de exportação
-        document.getElementById('export-total-records').textContent = deliveryData.length;
-        document.getElementById('export-inconsistency-count').textContent = inconsistentCount;
-        document.getElementById('export-corrected-count').textContent = correctedCount;
-        document.getElementById('export-success-count').textContent = successCount;
-        
-        // Exportar dados para o módulo de exportação
-        window.exporter.setExportData(deliveryData, dashboardStats);
-    }
-    
-    // Função para formatar valores monetários
+    // Função para formatar moeda
     function formatCurrency(value) {
-        return value.toFixed(2).replace('.', ',') + ' €';
+        return value.toFixed(2) + ' €';
     }
     
     // Função para obter texto de status
-    function getStatusText(delivery) {
-        if (delivery.permanentInconsistency === 'cliente_sem_campanha_falta_pagamento') {
-            return 'Cliente sem campanha, falta pagamento';
-        } else if (delivery.resolution === 'auto_validated') {
-            return 'Validado Automaticamente';
-        } else if (delivery.status === 'validated' || delivery.resolution === 'confirmed') {
-            return 'Validado';
-        } else if (delivery.resolution === 'missing_value') {
-            return 'Valor em Falta';
-        } else if (delivery.resolution === 'not_delivered') {
-            return 'Não Entregue';
-        } else if (delivery.resolution === 'ignore') {
-            return 'Ignorado';
-        } else if (delivery.status === 'inconsistent') {
-            return 'Inconsistente';
-        } else if (delivery.status === 'ready') {
-            return 'Pronto para Validação';
-        } else {
-            return 'Pendente';
+    function getStatusText(status) {
+        switch (status) {
+            case 'pending':
+                return 'Pendente';
+            case 'inconsistent':
+                return 'Inconsistente';
+            case 'ready':
+                return 'Pronto para Validação';
+            case 'validated':
+                return 'Validado';
+            default:
+                return status;
         }
     }
+    
+    // Inicializar dashboard
+    initDashboard();
     
     // Exportar funções para uso global
     window.dashboard = {
         setDeliveryData: setDeliveryData,
-        getStats: () => dashboardStats
+        getDeliveryData: () => deliveryData,
+        renderDashboard: renderDashboard
     };
 });

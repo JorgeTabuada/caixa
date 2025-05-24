@@ -602,6 +602,26 @@ document.addEventListener('DOMContentLoaded', function() {
         // Preparar dados para dashboard
         prepareDashboardData();
         
+        // Enviar dados validados para o Supabase
+        if (window.supabaseUtils) {
+            const allDeliveries = [
+                ...validatedDeliveries,
+                ...pendingDeliveries.filter(d => 
+                    !validatedDeliveries.some(vd => vd.alocation === d.alocation)
+                )
+            ];
+            
+            console.log('Enviando dados para Supabase após encerramento da caixa:', allDeliveries);
+            
+            window.supabaseUtils.importDeliveries(allDeliveries).then(res => {
+                if (!res.error) {
+                    console.log('Dados gravados com sucesso na Supabase!');
+                } else {
+                    console.error('Erro ao gravar na Supabase:', res.error);
+                }
+            });
+        }
+        
         // Mudar para a aba de dashboard
         const dashboardTab = document.querySelector('.nav-tab[data-tab="dashboard"]');
         changeTab(dashboardTab);
