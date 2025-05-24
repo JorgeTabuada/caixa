@@ -1,0 +1,27 @@
+{
+  "name": "caixa-multipark-supabase",
+  "version": "1.0.0",
+  "description": "Aplicação Caixa Multipark integrada com Supabase",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "npx serve ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JorgeTabuada/caixa.git"
+  },
+  "keywords": ["caixa", "multipark", "supabase"],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JorgeTabuada/caixa/issues"
+  },
+  "homepage": "https://github.com/JorgeTabuada/caixa#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.8"
+  }
+}
