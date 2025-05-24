@@ -1,10 +1,8 @@
-// Comparador entre Sales Orders e Deliveries com integração Supabase
-import { getComparisonResults, getSalesOrders, getDeliveries, saveComparisonResults } from './supabase.js';
-
+// Comparador entre Odoo e Back Office
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos da interface de comparação
-    const salesCountElement = document.getElementById('sales-count');
-    const deliveriesCountElement = document.getElementById('deliveries-count');
+    const odooCountElement = document.getElementById('odoo-count');
+    const backofficeCountElement = document.getElementById('backoffice-count');
     const inconsistencyCountElement = document.getElementById('inconsistency-count');
     const missingCountElement = document.getElementById('missing-count');
     const comparisonTable = document.getElementById('comparison-table').querySelector('tbody');
@@ -45,7 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Função principal de comparação
-    async function compareData(salesData, deliveriesData) {
+    window.compareOdooBackOffice = function(odooData, backOfficeData) {
         // Limpar resultados anteriores
         comparisonResults = {
             all: [],
@@ -55,50 +53,50 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         // Atualizar contadores
-        salesCountElement.textContent = salesData.length;
-        deliveriesCountElement.textContent = deliveriesData.length;
+        odooCountElement.textContent = odooData.length;
+        backofficeCountElement.textContent = backOfficeData.length;
         
-        // Criar mapa de registros do Sales Orders por matrícula (insensível a maiúsculas/minúsculas)
-        const salesMap = new Map();
-        salesData.forEach(record => {
-            if (record.license_plate) {
+        // Criar mapa de registros do Odoo por matrícula (insensível a maiúsculas/minúsculas)
+        const odooMap = new Map();
+        odooData.forEach(record => {
+            if (record.licensePlate) {
                 // Normalizar matrícula: remover espaços, traços, pontos e outros caracteres especiais
-                const normalizedPlate = String(record.license_plate).replace(/[\s\-\.\,\/\\\(\)\[\]\{\}\+\*\?\^\$\|]/g, '').toLowerCase();
-                salesMap.set(normalizedPlate, record);
+                const normalizedPlate = String(record.licensePlate).replace(/[\s\-\.\,\/\\\(\)\[\]\{\}\+\*\?\^\$\|]/g, '').toLowerCase();
+                odooMap.set(normalizedPlate, record);
             }
         });
         
-        // Criar mapa de registros do Deliveries por matrícula (insensível a maiúsculas/minúsculas)
-        const deliveriesMap = new Map();
-        deliveriesData.forEach(record => {
-            if (record.license_plate) {
+        // Criar mapa de registros do Back Office por matrícula (insensível a maiúsculas/minúsculas)
+        const backOfficeMap = new Map();
+        backOfficeData.forEach(record => {
+            if (record.licensePlate) {
                 // Normalizar matrícula: remover espaços, traços, pontos e outros caracteres especiais
-                const normalizedPlate = String(record.license_plate).replace(/[\s\-\.\,\/\\\(\)\[\]\{\}\+\*\?\^\$\|]/g, '').toLowerCase();
-                deliveriesMap.set(normalizedPlate, record);
+                const normalizedPlate = String(record.licensePlate).replace(/[\s\-\.\,\/\\\(\)\[\]\{\}\+\*\?\^\$\|]/g, '').toLowerCase();
+                backOfficeMap.set(normalizedPlate, record);
             }
         });
         
-        // Verificar registros do Deliveries
-        deliveriesData.forEach(deliveryRecord => {
-            if (!deliveryRecord.license_plate) return;
+        // Verificar registros do Back Office
+        backOfficeData.forEach(boRecord => {
+            if (!boRecord.licensePlate) return;
             
-            const licensePlate = deliveryRecord.license_plate;
+            const licensePlate = boRecord.licensePlate;
             // Normalizar matrícula: remover espaços, traços, pontos e outros caracteres especiais
             const normalizedPlate = String(licensePlate).replace(/[\s\-\.\,\/\\\(\)\[\]\{\}\+\*\?\^\$\|]/g, '').toLowerCase();
-            const salesRecord = salesMap.get(normalizedPlate);
+            const odooRecord = odooMap.get(normalizedPlate);
             
-            if (!salesRecord) {
-                // Registro presente no Deliveries mas ausente no Sales Orders
+            if (!odooRecord) {
+                // Registro presente no Back Office mas ausente no Odoo
                 comparisonResults.missing.push({
-                    source: 'deliveries',
+                    source: 'backoffice',
                     licensePlate: licensePlate,
-                    alocation: deliveryRecord.alocation || 'N/A',
-                    bookingPriceDeliveries: deliveryRecord.booking_price || 0,
-                    bookingPriceSales: 'N/A',
-                    parkBrand: deliveryRecord.park_brand || 'N/A',
-                    status: 'missing_in_sales',
-                    deliveryRecord: deliveryRecord,
-                    salesRecord: null,
+                    alocation: boRecord.alocation || 'N/A',
+                    bookingPriceBO: boRecord.bookingPrice || 0,
+                    bookingPriceOdoo: 'N/A',
+                    parkBrand: boRecord.parkBrand || 'N/A',
+                    status: 'missing_in_odoo',
+                    boRecord: boRecord,
+                    odooRecord: null,
                     resolution: null
                 });
             } else {
@@ -106,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const inconsistencies = [];
                 
                 // Verificar apenas preço de booking (conforme solicitado)
-                if (normalizeValue(deliveryRecord.booking_price) !== normalizeValue(salesRecord.booking_price)) {
+                if (normalizeValue(boRecord.bookingPrice) !== normalizeValue(odooRecord.bookingPrice)) {
                     inconsistencies.push('bookingPrice');
                 }
                 
@@ -115,15 +113,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     comparisonResults.inconsistent.push({
                         source: 'both',
                         licensePlate: licensePlate,
-                        alocation: deliveryRecord.alocation || 'N/A',
-                        bookingPriceDeliveries: deliveryRecord.booking_price || 0,
-                        bookingPriceSales: salesRecord.booking_price || 0,
-                        parkBrand: deliveryRecord.park_brand || 'N/A',
-                        parkBrandSales: salesRecord.park_brand || 'N/A',
+                        alocation: boRecord.alocation || 'N/A',
+                        bookingPriceBO: boRecord.bookingPrice || 0,
+                        bookingPriceOdoo: odooRecord.bookingPrice || 0,
+                        parkBrand: boRecord.parkBrand || 'N/A',
+                        parkBrandOdoo: odooRecord.parkBrand || 'N/A',
                         status: 'inconsistent',
                         inconsistencies: inconsistencies,
-                        deliveryRecord: deliveryRecord,
-                        salesRecord: salesRecord,
+                        boRecord: boRecord,
+                        odooRecord: odooRecord,
                         resolution: null
                     });
                 } else {
@@ -131,40 +129,40 @@ document.addEventListener('DOMContentLoaded', function() {
                     comparisonResults.valid.push({
                         source: 'both',
                         licensePlate: licensePlate,
-                        alocation: deliveryRecord.alocation || 'N/A',
-                        bookingPriceDeliveries: deliveryRecord.booking_price || 0,
-                        bookingPriceSales: salesRecord.booking_price || 0,
-                        parkBrand: deliveryRecord.park_brand || 'N/A',
+                        alocation: boRecord.alocation || 'N/A',
+                        bookingPriceBO: boRecord.bookingPrice || 0,
+                        bookingPriceOdoo: odooRecord.bookingPrice || 0,
+                        parkBrand: boRecord.parkBrand || 'N/A',
                         status: 'valid',
-                        deliveryRecord: deliveryRecord,
-                        salesRecord: salesRecord,
+                        boRecord: boRecord,
+                        odooRecord: odooRecord,
                         resolution: 'valid'
                     });
                 }
             }
         });
         
-        // Verificar registros do Sales Orders ausentes no Deliveries
-        salesData.forEach(salesRecord => {
-            if (!salesRecord.license_plate) return;
+        // Verificar registros do Odoo ausentes no Back Office
+        odooData.forEach(odooRecord => {
+            if (!odooRecord.licensePlate) return;
             
-            const licensePlate = salesRecord.license_plate;
+            const licensePlate = odooRecord.licensePlate;
             // Normalizar matrícula: remover espaços, traços, pontos e outros caracteres especiais
             const normalizedPlate = String(licensePlate).replace(/[\s\-\.\,\/\\\(\)\[\]\{\}\+\*\?\^\$\|]/g, '').toLowerCase();
-            const deliveryRecord = deliveriesMap.get(normalizedPlate);
+            const boRecord = backOfficeMap.get(normalizedPlate);
             
-            if (!deliveryRecord) {
-                // Registro presente no Sales Orders mas ausente no Deliveries
+            if (!boRecord) {
+                // Registro presente no Odoo mas ausente no Back Office
                 comparisonResults.missing.push({
-                    source: 'sales',
+                    source: 'odoo',
                     licensePlate: licensePlate,
                     alocation: 'N/A',
-                    bookingPriceDeliveries: 'N/A',
-                    bookingPriceSales: salesRecord.booking_price || 0,
-                    parkBrand: salesRecord.park_brand || 'N/A',
-                    status: 'missing_in_deliveries',
-                    deliveryRecord: null,
-                    salesRecord: salesRecord,
+                    bookingPriceBO: 'N/A',
+                    bookingPriceOdoo: odooRecord.bookingPrice || 0,
+                    parkBrand: odooRecord.parkBrand || 'N/A',
+                    status: 'missing_in_backoffice',
+                    boRecord: null,
+                    odooRecord: odooRecord,
                     resolution: null
                 });
             }
@@ -186,20 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Habilitar botão de validação se não houver problemas ou se todos os problemas tiverem resolução
         updateValidateButton();
-        
-        // Salvar resultados no Supabase
-        const batchId = window.fileProcessor.getCurrentBatchId();
-        if (batchId) {
-            try {
-                await saveComparisonResults(comparisonResults.all, batchId);
-                console.log('Resultados da comparação salvos no Supabase');
-            } catch (error) {
-                console.error('Erro ao salvar resultados da comparação:', error);
-            }
-        }
-        
-        return comparisonResults;
-    }
+    };
     
     // Função para renderizar a tabela de comparação
     function renderComparisonTable(records) {
@@ -230,8 +215,8 @@ document.addEventListener('DOMContentLoaded', function() {
             row.innerHTML = `
                 <td>${record.licensePlate}</td>
                 <td>${record.alocation}</td>
-                <td>${record.bookingPriceDeliveries} €</td>
-                <td>${record.bookingPriceSales} €</td>
+                <td>${record.bookingPriceBO} €</td>
+                <td>${record.bookingPriceOdoo} €</td>
                 <td>${record.parkBrand}</td>
                 <td>${getStatusText(record.status)}</td>
                 <td>
@@ -284,37 +269,37 @@ document.addEventListener('DOMContentLoaded', function() {
             ${record.resolution ? `<p>Resolução: ${record.resolution}</p>` : ''}
         `;
         
-        // Detalhes do Deliveries
-        if (record.deliveryRecord) {
-            const deliveryDetails = document.createElement('div');
-            deliveryDetails.innerHTML = `
-                <h4 class="mt-20">Detalhes do Deliveries</h4>
+        // Detalhes do Back Office
+        if (record.boRecord) {
+            const boDetails = document.createElement('div');
+            boDetails.innerHTML = `
+                <h4 class="mt-20">Detalhes do Back Office</h4>
                 <table class="table">
-                    <tr><th>Alocação</th><td>${record.deliveryRecord.alocation || 'N/A'}</td></tr>
-                    <tr><th>Preço Booking</th><td>${record.deliveryRecord.booking_price || 'N/A'} €</td></tr>
-                    <tr><th>Marca</th><td>${record.deliveryRecord.park_brand || 'N/A'}</td></tr>
-                    <tr><th>Campanha</th><td>${record.deliveryRecord.campaign || 'N/A'}</td></tr>
-                    <tr><th>Check-In</th><td>${record.deliveryRecord.check_in || 'N/A'}</td></tr>
+                    <tr><th>Alocação</th><td>${record.boRecord.alocation || 'N/A'}</td></tr>
+                    <tr><th>Preço Booking</th><td>${record.boRecord.bookingPrice || 'N/A'} €</td></tr>
+                    <tr><th>Marca</th><td>${record.boRecord.parkBrand || 'N/A'}</td></tr>
+                    <tr><th>Campanha</th><td>${record.boRecord.campaign || 'N/A'}</td></tr>
+                    <tr><th>Check-In</th><td>${record.boRecord.checkIn || 'N/A'}</td></tr>
                 </table>
             `;
-            content.appendChild(deliveryDetails);
+            content.appendChild(boDetails);
         }
         
-        // Detalhes do Sales Orders
-        if (record.salesRecord) {
-            const salesDetails = document.createElement('div');
-            salesDetails.innerHTML = `
-                <h4 class="mt-20">Detalhes do Sales Orders</h4>
+        // Detalhes do Odoo
+        if (record.odooRecord) {
+            const odooDetails = document.createElement('div');
+            odooDetails.innerHTML = `
+                <h4 class="mt-20">Detalhes do Odoo</h4>
                 <table class="table">
-                    <tr><th>ID</th><td>${record.salesRecord.id || 'N/A'}</td></tr>
-                    <tr><th>Preço Booking</th><td>${record.salesRecord.booking_price || 'N/A'} €</td></tr>
-                    <tr><th>Preço na Entrega</th><td>${record.salesRecord.price_on_delivery || 'N/A'} €</td></tr>
-                    <tr><th>Marca</th><td>${record.salesRecord.park_brand || 'N/A'}</td></tr>
-                    <tr><th>Check-In</th><td>${record.salesRecord.check_in || 'N/A'}</td></tr>
-                    <tr><th>Check-Out</th><td>${record.salesRecord.check_out || 'N/A'}</td></tr>
+                    <tr><th>ID</th><td>${record.odooRecord.ID || 'N/A'}</td></tr>
+                    <tr><th>Preço Booking</th><td>${record.odooRecord.bookingPrice || 'N/A'} €</td></tr>
+                    <tr><th>Preço na Entrega</th><td>${record.odooRecord.priceOnDelivery || 'N/A'} €</td></tr>
+                    <tr><th>Marca</th><td>${record.odooRecord.parkBrand || 'N/A'}</td></tr>
+                    <tr><th>Check-In</th><td>${record.odooRecord.checkIn || 'N/A'}</td></tr>
+                    <tr><th>Check-Out</th><td>${record.odooRecord.checkOut || 'N/A'}</td></tr>
                 </table>
             `;
-            content.appendChild(salesDetails);
+            content.appendChild(odooDetails);
         }
         
         // Inconsistências
@@ -325,9 +310,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <ul>
                     ${record.inconsistencies.map(inc => {
                         if (inc === 'bookingPrice') {
-                            return `<li>Preço de Booking: ${record.bookingPriceDeliveries} € (Deliveries) vs ${record.bookingPriceSales} € (Sales)</li>`;
+                            return `<li>Preço de Booking: ${record.bookingPriceBO} € (BO) vs ${record.bookingPriceOdoo} € (Odoo)</li>`;
                         } else if (inc === 'parkBrand') {
-                            return `<li>Marca: ${record.parkBrand} (Deliveries) vs ${record.parkBrandSales} (Sales)</li>`;
+                            return `<li>Marca: ${record.parkBrand} (BO) vs ${record.parkBrandOdoo} (Odoo)</li>`;
                         } else {
                             return `<li>${inc}</li>`;
                         }
@@ -364,295 +349,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="form-group">
                     <label class="form-label">Escolha a fonte de dados preferida:</label>
                     <div>
-                        <input type="radio" id="prefer-deliveries" name="data-source" value="deliveries" checked>
-                        <label for="prefer-deliveries">Usar dados do Deliveries</label>
+                        <input type="radio" id="prefer-backoffice" name="data-source" value="backoffice" checked>
+                        <label for="prefer-backoffice">Usar dados do Back Office</label>
                     </div>
                     <div>
-                        <input type="radio" id="prefer-sales" name="data-source" value="sales">
-                        <label for="prefer-sales">Usar dados do Sales Orders</label>
-                    </div>
-                    <div>
-                        <input type="radio" id="prefer-manual" name="data-source" value="manual">
-                        <label for="prefer-manual">Inserir manualmente</label>
-                    </div>
-                </div>
-                
-                <div id="manual-fields" class="hidden">
-                    ${record.inconsistencies.includes('bookingPrice') ? `
-                        <div class="form-group">
-                            <label for="manual-booking-price" class="form-label">Preço de Booking:</label>
-                            <input type="number" id="manual-booking-price" class="form-control" value="${record.bookingPriceDeliveries}" step="0.01">
-                        </div>
-                    ` : ''}
-                </div>
-                
-                <div class="form-group">
-                    <label for="resolution-notes" class="form-label">Notas de resolução:</label>
-                    <textarea id="resolution-notes" class="form-control" rows="3"></textarea>
-                </div>
-            `;
-        } else if (record.status.includes('missing')) {
-            // Formulário para registros ausentes
-            form.innerHTML = `
-                <p>Resolva o problema para o registro com matrícula <strong>${record.licensePlate}</strong> que está ${record.status === 'missing_in_sales' ? 'ausente no Sales Orders' : 'ausente no Deliveries'}:</p>
-                
-                <div class="form-group">
-                    <label class="form-label">Escolha a ação:</label>
-                    <div>
-                        <input type="radio" id="action-ignore" name="missing-action" value="ignore" checked>
-                        <label for="action-ignore">Ignorar (manter como está)</label>
-                    </div>
-                    <div>
-                        <input type="radio" id="action-create" name="missing-action" value="create">
-                        <label for="action-create">Criar registro correspondente</label>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="resolution-notes" class="form-label">Notas de resolução:</label>
-                    <textarea id="resolution-notes" class="form-control" rows="3"></textarea>
-                </div>
-            `;
-        }
-        
-        // Adicionar botões
-        form.innerHTML += `
-            <div class="form-actions">
-                <button type="button" id="cancel-resolve" class="btn btn-secondary">Cancelar</button>
-                <button type="button" id="submit-resolve" class="btn btn-primary">Salvar</button>
-            </div>
-        `;
-        
-        modalBody.appendChild(form);
-        
-        // Mostrar modal
-        document.getElementById('edit-modal-overlay').style.display = 'flex';
-        
-        // Adicionar eventos aos botões
-        document.getElementById('cancel-resolve').addEventListener('click', function() {
-            document.getElementById('edit-modal-overlay').style.display = 'none';
-        });
-        
-        // Mostrar/esconder campos manuais
-        if (record.status === 'inconsistent') {
-            document.querySelectorAll('input[name="data-source"]').forEach(radio => {
-                radio.addEventListener('change', function() {
-                    const manualFields = document.getElementById('manual-fields');
-                    if (this.value === 'manual') {
-                        manualFields.classList.remove('hidden');
-                    } else {
-                        manualFields.classList.add('hidden');
-                    }
-                });
-            });
-        }
-        
-        // Evento de submissão
-        document.getElementById('submit-resolve').addEventListener('click', function() {
-            resolveIssue(record);
-        });
-    }
-    
-    // Função para resolver problemas
-    async function resolveIssue(record) {
-        try {
-            if (record.status === 'inconsistent') {
-                const dataSource = document.querySelector('input[name="data-source"]:checked').value;
-                const notes = document.getElementById('resolution-notes').value;
-                
-                if (dataSource === 'deliveries') {
-                    // Usar dados do Deliveries
-                    record.resolution = 'use_deliveries';
-                    record.resolutionNotes = notes;
-                    
-                    // Atualizar valores
-                    if (record.inconsistencies.includes('bookingPrice')) {
-                        record.bookingPriceSales = record.bookingPriceDeliveries;
-                    }
-                } else if (dataSource === 'sales') {
-                    // Usar dados do Sales Orders
-                    record.resolution = 'use_sales';
-                    record.resolutionNotes = notes;
-                    
-                    // Atualizar valores
-                    if (record.inconsistencies.includes('bookingPrice')) {
-                        record.bookingPriceDeliveries = record.bookingPriceSales;
-                    }
-                } else if (dataSource === 'manual') {
-                    // Usar dados manuais
-                    record.resolution = 'manual';
-                    record.resolutionNotes = notes;
-                    
-                    // Atualizar valores
-                    if (record.inconsistencies.includes('bookingPrice')) {
-                        const manualPrice = parseFloat(document.getElementById('manual-booking-price').value);
-                        record.bookingPriceDeliveries = manualPrice;
-                        record.bookingPriceSales = manualPrice;
-                    }
-                }
-                
-                // Remover das listas de problemas
-                const index = comparisonResults.inconsistent.findIndex(r => r.licensePlate === record.licensePlate);
-                if (index !== -1) {
-                    comparisonResults.inconsistent.splice(index, 1);
-                }
-                
-                // Adicionar à lista de válidos
-                record.status = 'resolved';
-                comparisonResults.valid.push(record);
-            } else if (record.status.includes('missing')) {
-                const action = document.querySelector('input[name="missing-action"]:checked').value;
-                const notes = document.getElementById('resolution-notes').value;
-                
-                if (action === 'ignore') {
-                    // Ignorar o problema
-                    record.resolution = 'ignore';
-                    record.resolutionNotes = notes;
-                } else if (action === 'create') {
-                    // Criar registro correspondente (na prática, apenas marcar como resolvido)
-                    record.resolution = 'create';
-                    record.resolutionNotes = notes;
-                }
-                
-                // Remover das listas de problemas
-                const index = comparisonResults.missing.findIndex(r => r.licensePlate === record.licensePlate);
-                if (index !== -1) {
-                    comparisonResults.missing.splice(index, 1);
-                }
-                
-                // Adicionar à lista de válidos se for para criar
-                if (action === 'create') {
-                    record.status = 'resolved';
-                    comparisonResults.valid.push(record);
-                }
-            }
-            
-            // Atualizar contadores
-            inconsistencyCountElement.textContent = comparisonResults.inconsistent.length;
-            missingCountElement.textContent = comparisonResults.missing.length;
-            
-            // Renderizar tabela novamente
-            const currentFilter = document.querySelector('.filter-btn.active').getAttribute('data-filter');
-            if (currentFilter === 'all') {
-                renderComparisonTable(comparisonResults.all);
-            } else if (currentFilter === 'missing') {
-                renderComparisonTable(comparisonResults.missing);
-            } else if (currentFilter === 'inconsistent') {
-                renderComparisonTable(comparisonResults.inconsistent);
-            }
-            
-            // Atualizar botão de validação
-            updateValidateButton();
-            
-            // Fechar modal
-            document.getElementById('edit-modal-overlay').style.display = 'none';
-            
-            // Salvar resultados atualizados no Supabase
-            const batchId = window.fileProcessor.getCurrentBatchId();
-            if (batchId) {
-                try {
-                    await saveComparisonResults(comparisonResults.all, batchId);
-                    console.log('Resultados da comparação atualizados no Supabase');
-                } catch (error) {
-                    console.error('Erro ao atualizar resultados da comparação:', error);
-                }
-            }
-        } catch (error) {
-            console.error('Erro ao resolver problema:', error);
-            alert('Erro ao resolver problema. Verifique o console para mais detalhes.');
-        }
-    }
-    
-    // Função para atualizar o botão de validação
-    function updateValidateButton() {
-        const hasUnresolvedIssues = comparisonResults.inconsistent.length > 0 || 
-                                   comparisonResults.missing.some(r => !r.resolution);
-        
-        validateComparisonBtn.disabled = hasUnresolvedIssues;
-    }
-    
-    // Função para obter texto de status
-    function getStatusText(status) {
-        switch (status) {
-            case 'valid':
-                return 'Válido';
-            case 'inconsistent':
-                return 'Inconsistente';
-            case 'missing_in_sales':
-                return 'Ausente no Sales Orders';
-            case 'missing_in_deliveries':
-                return 'Ausente no Deliveries';
-            case 'resolved':
-                return 'Resolvido';
-            default:
-                return status;
-        }
-    }
-    
-    // Eventos de filtro
-    showAllBtn.addEventListener('click', function() {
-        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-        this.classList.add('active');
-        renderComparisonTable(comparisonResults.all);
-    });
-    
-    showMissingBtn.addEventListener('click', function() {
-        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-        this.classList.add('active');
-        renderComparisonTable(comparisonResults.missing);
-    });
-    
-    showInconsistentBtn.addEventListener('click', function() {
-        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-        this.classList.add('active');
-        renderComparisonTable(comparisonResults.inconsistent);
-    });
-    
-    // Evento de validação
-    validateComparisonBtn.addEventListener('click', function() {
-        // Navegar para a aba de validação de caixa
-        document.querySelector('.nav-tab[data-tab="validate"]').click();
-    });
-    
-    // Eventos de fechamento de modais
-    document.querySelectorAll('.modal-close').forEach(closeBtn => {
-        closeBtn.addEventListener('click', function() {
-            this.closest('.modal-overlay').style.display = 'none';
-        });
-    });
-    
-    // Inicializar comparação com dados do Supabase quando o botão de processamento for clicado
-    document.getElementById('process-files-btn').addEventListener('click', async function() {
-        try {
-            const batchId = window.fileProcessor.getCurrentBatchId();
-            if (!batchId) {
-                console.error('Nenhum lote de importação disponível');
-                return;
-            }
-            
-            // Obter dados do Supabase
-            const salesData = await getSalesOrders(batchId);
-            const deliveriesData = await getDeliveries(batchId);
-            
-            if (salesData.length === 0 || deliveriesData.length === 0) {
-                alert('Não há dados suficientes para comparação. Verifique se os arquivos foram importados corretamente.');
-                return;
-            }
-            
-            // Realizar comparação
-            await compareData(salesData, deliveriesData);
-            
-            // Navegar para a aba de comparação
-            document.querySelector('.nav-tab[data-tab="compare"]').click();
-        } catch (error) {
-            console.error('Erro ao iniciar comparação:', error);
-            alert('Erro ao iniciar comparação. Verifique o console para mais detalhes.');
-        }
-    });
-    
-    // Expor funções e variáveis para uso externo
-    window.comparator = {
-        compareData: compareData,
-        getResults: () => comparisonResults
-    };
-});
+                        <input type="radio" id="prefer-odoo" name="data-source" value="odoo">
+                        <label f
+(Content truncated due to size limit. Use line ranges to read in chunks)

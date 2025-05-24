@@ -1,12 +1,36 @@
 // Configuração e inicialização do cliente Supabase
-import { createClient } from '@supabase/supabase-js';
+// Versão adaptada para uso com CDN em ambiente estático
 
 // Constantes de configuração do Supabase
 const SUPABASE_URL = 'https://uvcmgzhwiibjcygqsjrm.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2Y21nemh3aWliamN5Z3FzanJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNDE3NTUsImV4cCI6MjA2MzYxNzc1NX0.br9Ah2nlwNNfigdLo8uSWgWavZU4wlvWMxDMyClQVoQ';
 
 // Inicializar o cliente Supabase
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabase;
+
+// Função para inicializar o cliente Supabase
+function initSupabase() {
+    if (typeof window.supabase !== 'undefined') {
+        // Usar o objeto global supabase diretamente
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Cliente Supabase inicializado com sucesso (método global)');
+    } else if (typeof supabaseClient !== 'undefined') {
+        // Fallback para supabaseClient se disponível
+        supabase = supabaseClient.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Cliente Supabase inicializado com sucesso (método cliente)');
+    } else if (typeof window.supabaseJs !== 'undefined') {
+        // Fallback para supabaseJs se disponível
+        supabase = window.supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Cliente Supabase inicializado com sucesso (método JS)');
+    } else {
+        console.error('Biblioteca Supabase não carregada. Verifique se o script do CDN está incluído.');
+    }
+}
+
+// Inicializar quando o documento estiver pronto
+document.addEventListener('DOMContentLoaded', function() {
+    initSupabase();
+});
 
 // Funções para interagir com o Supabase
 
@@ -15,7 +39,12 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
  * @param {Object} batchInfo - Informações sobre o lote de importação
  * @returns {Promise<Object>} - O lote de importação criado
  */
-export async function createImportBatch(batchInfo) {
+async function createImportBatch(batchInfo) {
+    if (!supabase) {
+        console.error('Cliente Supabase não inicializado');
+        return null;
+    }
+
     const { data, error } = await supabase
         .from('import_batches')
         .insert({
@@ -42,7 +71,12 @@ export async function createImportBatch(batchInfo) {
  * @param {string} batchId - ID do lote de importação
  * @returns {Promise<Object>} - Resultado da importação
  */
-export async function importSalesOrders(salesData, batchId) {
+async function importSalesOrders(salesData, batchId) {
+    if (!supabase) {
+        console.error('Cliente Supabase não inicializado');
+        return { count: 0 };
+    }
+
     if (!salesData || salesData.length === 0) {
         console.warn('Nenhum dado de vendas para importar');
         return { count: 0 };
@@ -93,7 +127,12 @@ export async function importSalesOrders(salesData, batchId) {
  * @param {string} batchId - ID do lote de importação
  * @returns {Promise<Object>} - Resultado da importação
  */
-export async function importDeliveries(deliveriesData, batchId) {
+async function importDeliveries(deliveriesData, batchId) {
+    if (!supabase) {
+        console.error('Cliente Supabase não inicializado');
+        return { count: 0 };
+    }
+
     if (!deliveriesData || deliveriesData.length === 0) {
         console.warn('Nenhum dado de entregas para importar');
         return { count: 0 };
@@ -140,7 +179,12 @@ export async function importDeliveries(deliveriesData, batchId) {
  * @param {string} batchId - ID do lote de importação
  * @returns {Promise<Object>} - Resultado da importação
  */
-export async function importCashRecords(cashData, batchId) {
+async function importCashRecords(cashData, batchId) {
+    if (!supabase) {
+        console.error('Cliente Supabase não inicializado');
+        return { count: 0 };
+    }
+
     if (!cashData || cashData.length === 0) {
         console.warn('Nenhum dado de caixa para importar');
         return { count: 0 };
@@ -187,7 +231,12 @@ export async function importCashRecords(cashData, batchId) {
  * @param {string} batchId - ID do lote de importação
  * @returns {Promise<Object>} - Resultado da operação
  */
-export async function saveComparisonResults(comparisonResults, batchId) {
+async function saveComparisonResults(comparisonResults, batchId) {
+    if (!supabase) {
+        console.error('Cliente Supabase não inicializado');
+        return { count: 0 };
+    }
+
     if (!comparisonResults || comparisonResults.length === 0) {
         console.warn('Nenhum resultado de comparação para salvar');
         return { count: 0 };
@@ -242,7 +291,12 @@ export async function saveComparisonResults(comparisonResults, batchId) {
  * @param {string} batchId - ID do lote de importação
  * @returns {Promise<Object>} - Resultado da operação
  */
-export async function saveValidationResults(validationResults, batchId) {
+async function saveValidationResults(validationResults, batchId) {
+    if (!supabase) {
+        console.error('Cliente Supabase não inicializado');
+        return { count: 0 };
+    }
+
     if (!validationResults || validationResults.length === 0) {
         console.warn('Nenhum resultado de validação para salvar');
         return { count: 0 };
@@ -298,7 +352,12 @@ export async function saveValidationResults(validationResults, batchId) {
  * @param {Object} exportData - Dados da exportação
  * @returns {Promise<Object>} - Resultado da operação
  */
-export async function saveExportData(exportData) {
+async function saveExportData(exportData) {
+    if (!supabase) {
+        console.error('Cliente Supabase não inicializado');
+        return null;
+    }
+
     const { data, error } = await supabase
         .from('exports')
         .insert({
@@ -322,7 +381,12 @@ export async function saveExportData(exportData) {
  * @param {string} batchId - ID do lote de importação (opcional)
  * @returns {Promise<Array>} - Dados de vendas
  */
-export async function getSalesOrders(batchId = null) {
+async function getSalesOrders(batchId = null) {
+    if (!supabase) {
+        console.error('Cliente Supabase não inicializado');
+        return [];
+    }
+
     let query = supabase
         .from('sales_orders')
         .select('*');
@@ -346,7 +410,12 @@ export async function getSalesOrders(batchId = null) {
  * @param {string} batchId - ID do lote de importação (opcional)
  * @returns {Promise<Array>} - Dados de entregas
  */
-export async function getDeliveries(batchId = null) {
+async function getDeliveries(batchId = null) {
+    if (!supabase) {
+        console.error('Cliente Supabase não inicializado');
+        return [];
+    }
+
     let query = supabase
         .from('deliveries')
         .select('*');
@@ -370,7 +439,12 @@ export async function getDeliveries(batchId = null) {
  * @param {string} batchId - ID do lote de importação (opcional)
  * @returns {Promise<Array>} - Dados de caixa
  */
-export async function getCashRecords(batchId = null) {
+async function getCashRecords(batchId = null) {
+    if (!supabase) {
+        console.error('Cliente Supabase não inicializado');
+        return [];
+    }
+
     let query = supabase
         .from('cash_records')
         .select('*');
@@ -393,7 +467,12 @@ export async function getCashRecords(batchId = null) {
  * Obtém os resultados de comparação do Supabase
  * @returns {Promise<Array>} - Resultados de comparação
  */
-export async function getComparisonResults() {
+async function getComparisonResults() {
+    if (!supabase) {
+        console.error('Cliente Supabase não inicializado');
+        return [];
+    }
+
     const { data, error } = await supabase
         .from('comparisons')
         .select(`
@@ -414,7 +493,12 @@ export async function getComparisonResults() {
  * Obtém os resultados de validação do Supabase
  * @returns {Promise<Array>} - Resultados de validação
  */
-export async function getValidationResults() {
+async function getValidationResults() {
+    if (!supabase) {
+        console.error('Cliente Supabase não inicializado');
+        return [];
+    }
+
     const { data, error } = await supabase
         .from('validations')
         .select(`
@@ -435,7 +519,12 @@ export async function getValidationResults() {
  * Obtém os lotes de importação do Supabase
  * @returns {Promise<Array>} - Lotes de importação
  */
-export async function getImportBatches() {
+async function getImportBatches() {
+    if (!supabase) {
+        console.error('Cliente Supabase não inicializado');
+        return [];
+    }
+
     const { data, error } = await supabase
         .from('import_batches')
         .select('*')
@@ -448,3 +537,21 @@ export async function getImportBatches() {
 
     return data;
 }
+
+// Expor funções globalmente
+window.supabaseUtils = {
+    initSupabase,
+    createImportBatch,
+    importSalesOrders,
+    importDeliveries,
+    importCashRecords,
+    saveComparisonResults,
+    saveValidationResults,
+    saveExportData,
+    getSalesOrders,
+    getDeliveries,
+    getCashRecords,
+    getComparisonResults,
+    getValidationResults,
+    getImportBatches
+};
