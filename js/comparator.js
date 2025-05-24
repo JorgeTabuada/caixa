@@ -590,7 +590,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Evento para botão de validação
-    validateComparisonBtn.addEventListener('click', function() {
+    validateComparisonBtn.addEventListener('click', function(event) {
+        console.log("Botão de validação de comparação clicado");
+        event.preventDefault(); // Prevenir comportamento padrão
+        
         // Atualizar dados do Odoo e Back Office com as resoluções
         window.fileProcessor.setOdooData(comparisonResults.all.map(r => r.odooRecord).filter(Boolean));
         window.fileProcessor.setBackOfficeData(comparisonResults.all.map(r => r.boRecord).filter(Boolean));

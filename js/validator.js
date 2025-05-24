@@ -335,10 +335,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Função para mostrar modal de validação de entrega
     function showValidateDeliveryModal(alocation) {
+        console.log("Abrindo modal de validação para alocação:", alocation);
         const delivery = currentDriverDeliveries.find(d => d.alocation === alocation);
-        if (!delivery) return;
+        if (!delivery) {
+            console.error("Entrega não encontrada para alocação:", alocation);
+            return;
+        }
         
         const modalBody = document.getElementById('validate-delivery-modal-body');
+        if (!modalBody) {
+            console.error("Elemento 'validate-delivery-modal-body' não encontrado no DOM");
+            return;
+        }
+        
         modalBody.innerHTML = '';
         
         // Criar formulário de validação
@@ -421,32 +430,47 @@ document.addEventListener('DOMContentLoaded', function() {
             const radioButtons = form.querySelectorAll('input[name="delivery-action"]');
             const confirmFields = form.querySelector('#confirm-fields');
             
-            radioButtons.forEach(radio => {
-                radio.addEventListener('change', function() {
-                    if (this.value === 'confirm') {
-                        confirmFields.classList.remove('hidden');
-                    } else {
-                        confirmFields.classList.add('hidden');
-                    }
+            if (radioButtons && confirmFields) {
+                radioButtons.forEach(radio => {
+                    radio.addEventListener('change', function() {
+                        if (this.value === 'confirm') {
+                            confirmFields.classList.remove('hidden');
+                        } else {
+                            confirmFields.classList.add('hidden');
+                        }
+                    });
                 });
-            });
+            }
         }
         
-        // Configurar botão de salvar
+        // Configurar botão de salvar - usando addEventListener em vez de onclick
         const saveButton = document.getElementById('save-validation-btn');
-        if (saveButton) {
-            // Remover qualquer evento anterior para evitar duplicação
-            const newSaveButton = saveButton.cloneNode(true);
-            saveButton.parentNode.replaceChild(newSaveButton, saveButton);
-            
-            // Adicionar novo evento de clique
-            newSaveButton.addEventListener('click', function() {
-                validateDelivery(delivery);
-            });
+        if (!saveButton) {
+            console.error("Botão 'save-validation-btn' não encontrado no DOM");
+            return;
         }
+        
+        // Remover todos os event listeners anteriores (técnica de clonagem)
+        const newSaveButton = saveButton.cloneNode(true);
+        if (saveButton.parentNode) {
+            saveButton.parentNode.replaceChild(newSaveButton, saveButton);
+        }
+        
+        // Adicionar novo event listener
+        newSaveButton.addEventListener('click', function(event) {
+            console.log("Botão de validação clicado");
+            event.preventDefault(); // Prevenir comportamento padrão
+            validateDelivery(delivery);
+        });
         
         // Mostrar modal
-        document.getElementById('validate-delivery-modal-overlay').style.display = 'flex';
+        const modalOverlay = document.getElementById('validate-delivery-modal-overlay');
+        if (modalOverlay) {
+            modalOverlay.style.display = 'flex';
+            console.log("Modal de validação exibido");
+        } else {
+            console.error("Elemento 'validate-delivery-modal-overlay' não encontrado no DOM");
+        }
     }
     
     // Função para validar entrega
