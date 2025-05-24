@@ -1,37 +1,57 @@
-// Aplicação principal
+// Aplicação principal com integração Supabase
+import { supabase } from './supabase.js';
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Configurar data atual
-    const currentDateElement = document.getElementById('current-date');
-    const today = new Date();
-    currentDateElement.textContent = today.toLocaleDateString('pt-BR');
+    // Elementos de navegação
+    const navTabs = document.querySelectorAll('.nav-tab');
+    const tabContents = document.querySelectorAll('.tab-content');
     
-    // Navegação por abas
-    const tabs = document.querySelectorAll('.nav-tab');
-    const contentSections = document.querySelectorAll('.content-section');
+    // Inicialização da aplicação
+    initApp();
     
-    tabs.forEach(tab => {
+    // Função de inicialização
+    async function initApp() {
+        console.log('Inicializando aplicação Caixa Multipark com Supabase');
+        
+        try {
+            // Verificar conexão com Supabase
+            const { data, error } = await supabase.from('import_batches').select('count()', { count: 'exact', head: true });
+            
+            if (error) {
+                console.error('Erro ao conectar com Supabase:', error);
+                alert('Erro ao conectar com a base de dados. Verifique o console para mais detalhes.');
+            } else {
+                console.log('Conexão com Supabase estabelecida com sucesso');
+            }
+        } catch (error) {
+            console.error('Erro ao inicializar aplicação:', error);
+        }
+        
+        // Mostrar a primeira aba (importação)
+        showTab('import');
+    }
+    
+    // Configurar eventos de navegação
+    navTabs.forEach(tab => {
         tab.addEventListener('click', function() {
-            changeTab(this);
+            const tabId = this.getAttribute('data-tab');
+            showTab(tabId);
         });
     });
     
-    // Função para mudar de aba
-    window.changeTab = function(tabElement) {
-        // Remover classe ativa de todas as abas
-        tabs.forEach(tab => {
-            tab.classList.remove('active');
-        });
+    // Função para mostrar aba
+    function showTab(tabId) {
+        // Desativar todas as abas
+        navTabs.forEach(tab => tab.classList.remove('active'));
+        tabContents.forEach(content => content.classList.add('hidden'));
         
-        // Adicionar classe ativa à aba clicada
-        tabElement.classList.add('active');
+        // Ativar aba selecionada
+        document.querySelector(`.nav-tab[data-tab="${tabId}"]`).classList.add('active');
+        document.getElementById(`${tabId}-tab`).classList.remove('hidden');
         
-        // Ocultar todas as seções de conteúdo
-        contentSections.forEach(section => {
-            section.classList.remove('active');
-        });
-        
-        // Mostrar a seção correspondente à aba
-        const tabId = tabElement.getAttribute('data-tab');
-        document.getElementById(`${tabId}-section`).classList.add('active');
-    };
+        // Ações específicas para cada aba
+        if (tabId === 'dashboard' && window.dashboard) {
+            window.dashboard.update();
+        }
+    }
 });
