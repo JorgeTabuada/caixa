@@ -434,9 +434,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Configurar botão de salvar
         const saveButton = document.getElementById('save-validation-btn');
-        saveButton.onclick = function() {
-            validateDelivery(delivery);
-        };
+        if (saveButton) {
+            // Remover qualquer evento anterior para evitar duplicação
+            const newSaveButton = saveButton.cloneNode(true);
+            saveButton.parentNode.replaceChild(newSaveButton, saveButton);
+            
+            // Adicionar novo evento de clique
+            newSaveButton.addEventListener('click', function() {
+                validateDelivery(delivery);
+            });
+        }
         
         // Mostrar modal
         document.getElementById('validate-delivery-modal-overlay').style.display = 'flex';
@@ -604,7 +611,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Mudar para a aba de dashboard
         const dashboardTab = document.querySelector('.nav-tab[data-tab="dashboard"]');
-        changeTab(dashboardTab);
+        if (dashboardTab) {
+            changeTab(dashboardTab);
+        } else {
+            console.error("Aba de dashboard não encontrada");
+        }
     });
     
     // Função para preparar dados para dashboard
@@ -680,7 +691,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Adicionar eventos para fechar modais
     document.querySelectorAll('.modal-close-btn').forEach(button => {
-        button.addEventListener('click', function() {
+        // Remover eventos anteriores para evitar duplicação
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        
+        newButton.addEventListener('click', function() {
             // Obter o modal pai
             const modalOverlay = this.closest('.modal-overlay');
             if (modalOverlay) {
@@ -691,22 +706,39 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Adicionar eventos para fechar modais ao clicar fora
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
-        overlay.addEventListener('click', function(e) {
-            // Fechar apenas se clicou diretamente no overlay (não em seus filhos)
-            if (e.target === this) {
-                this.style.display = 'none';
+        // Remover eventos anteriores para evitar duplicação
+        const newOverlay = overlay.cloneNode(true);
+        if (overlay.parentNode) {
+            // Preservar conteúdo interno
+            while (overlay.firstChild) {
+                newOverlay.appendChild(overlay.firstChild);
             }
-        });
+            overlay.parentNode.replaceChild(newOverlay, overlay);
+            
+            // Adicionar evento de clique
+            newOverlay.addEventListener('click', function(e) {
+                // Fechar apenas se clicou diretamente no overlay (não em seus filhos)
+                if (e.target === this) {
+                    this.style.display = 'none';
+                }
+            });
+        }
     });
     
-    // Adicionar eventos para tecla ESC fechar modais
-    document.addEventListener('keydown', function(e) {
+    // Remover evento anterior de tecla ESC para evitar duplicação
+    document.removeEventListener('keydown', escKeyHandler);
+    
+    // Função para lidar com tecla ESC
+    function escKeyHandler(e) {
         if (e.key === 'Escape') {
             document.querySelectorAll('.modal-overlay').forEach(overlay => {
                 overlay.style.display = 'none';
             });
         }
-    });
+    }
+    
+    // Adicionar novo evento para tecla ESC fechar modais
+    document.addEventListener('keydown', escKeyHandler);
     
     // Exportar funções para uso global
     window.validator = {

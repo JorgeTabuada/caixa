@@ -597,7 +597,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Mudar para a aba de validação de caixa
         const validateTab = document.querySelector('.nav-tab[data-tab="validate"]');
-        changeTab(validateTab);
+        if (validateTab) {
+            changeTab(validateTab);
+        } else {
+            console.error("Aba de validação não encontrada");
+        }
     });
     
     // Eventos para modais
