@@ -6,24 +6,20 @@ const SUPABASE_URL = 'https://uvcmgzhwiibjcygqsjrm.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2Y21nemh3aWliamN5Z3FzanJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNDE3NTUsImV4cCI6MjA2MzYxNzc1NX0.br9Ah2nlwNNfigdLo8uSWgWavZU4wlvWMxDMyClQVoQ';
 
 // Inicializar o cliente Supabase
-let supabase;
+let supabase; // Keep this module-scoped or ensure it's correctly assigned globally if other files rely on a global `supabase` instance.
 
-// Função para inicializar o cliente Supabase
 function initSupabase() {
-    if (typeof window.supabase !== 'undefined') {
-        // Usar o objeto global supabase diretamente
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Cliente Supabase inicializado com sucesso (método global)');
-    } else if (typeof supabaseClient !== 'undefined') {
-        // Fallback para supabaseClient se disponível
-        supabase = supabaseClient.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Cliente Supabase inicializado com sucesso (método cliente)');
-    } else if (typeof window.supabaseJs !== 'undefined') {
-        // Fallback para supabaseJs se disponível
+    if (supabase) { // Avoid re-initializing if already done
+        console.log('Supabase client already initialized.');
+        return;
+    }
+    if (typeof window.supabaseJs !== 'undefined' && typeof window.supabaseJs.createClient === 'function') {
         supabase = window.supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Cliente Supabase inicializado com sucesso (método JS)');
+        console.log('Supabase client initialized successfully using window.supabaseJs.');
+        // If other modules like auth.js expect a global `window.supabase` client instance:
+        window.supabase = supabase; 
     } else {
-        console.error('Biblioteca Supabase não carregada. Verifique se o script do CDN está incluído.');
+        console.error('Supabase JS library (window.supabaseJs) not found or not loaded correctly. Ensure CDN script is included and loaded before this script.');
     }
 }
 
