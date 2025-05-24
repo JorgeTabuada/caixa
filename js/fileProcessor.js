@@ -1,9 +1,12 @@
-// Processador de arquivos Excel
+// Processador de arquivos Excel com integração Supabase
+import { createImportBatch, importSalesOrders, importDeliveries, importCashRecords } from './supabase.js';
+
 document.addEventListener('DOMContentLoaded', function() {
     // Variáveis globais para armazenar os dados dos arquivos
     let odooData = null;
     let backOfficeData = null;
     let caixaData = null;
+    let currentBatchId = null;
 
     // Referências aos elementos de upload de arquivos
     const odooFileInput = document.getElementById('odoo-file');
@@ -67,7 +70,6 @@ document.addEventListener('DOMContentLoaded', function() {
             readExcelFile(file, 'caixa');
             
             // Iniciar validação de caixa se os dados forem carregados com sucesso
-            // Este trecho foi adicionado para corrigir o problema de carregamento
             setTimeout(function() {
                 if (caixaData) {
                     console.log("Iniciando validação de caixa automaticamente");
@@ -83,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function readExcelFile(file, fileType) {
         const reader = new FileReader();
         
-        reader.onload = function(e) {
+        reader.onload = async function(e) {
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
@@ -96,31 +98,96 @@ document.addEventListener('DOMContentLoaded', function() {
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
                 
                 console.log(`Dados originais do ${fileType}:`, jsonData.slice(0, 2)); // Mostrar apenas os primeiros 2 registros
-                console.log(`Número de registos originais do ${fileType}: ${jsonData.length}`);
-                
-                if (jsonData.length > 0) {
-                    console.log(`Colunas originais do ${fileType}:`, Object.keys(jsonData[0]));
-                }
                 
                 // Processar dados conforme o tipo de arquivo
                 if (fileType === 'odoo') {
-                    // Verificar se é o arquivo sale.booking ou similar
-                    if (isOdooFile(jsonData)) {
-                        console.log("Detectado arquivo compatível com Odoo");
-                        const transformedData = transformOdooData(jsonData);
-                        odooData = transformedData;
-                        console.log('Dados do Odoo transformados:', transformedData.slice(0, 2));
+                    odooData = jsonData;
+                    console.log('Dados do Odoo carregados:', odooData.slice(0, 2));
+                    
+                    // Criar lote de importação se ainda não existir
+                    if (!currentBatchId) {
+                        try {
+                            const batchInfo = {
+                                batchDate: new Date().toISOString().split('T')[0],
+                                salesFilename: file.name
+                            };
+                            const batch = await createImportBatch(batchInfo);
+                            currentBatchId = batch.id;
+                            console.log('Lote de importação criado:', currentBatchId);
+                            
+                            // Importar dados para o Supabase
+                            const result = await importSalesOrders(odooData, currentBatchId);
+                            console.log(`${result.count} registros de Sales Orders importados para o Supabase`);
+                        } catch (error) {
+                            console.error('Erro ao criar lote de importação ou importar dados:', error);
+                            alert('Erro ao importar dados para o Supabase. Verifique o console para mais detalhes.');
+                        }
                     } else {
-                        console.error("Arquivo Odoo não reconhecido. Esperava-se um arquivo sale.booking ou similar.");
-                        alert("O arquivo Odoo não está no formato esperado. Por favor, verifique o arquivo e tente novamente.");
-                        return;
+                        try {
+                            // Importar dados para o Supabase
+                            const result = await importSalesOrders(odooData, currentBatchId);
+                            console.log(`${result.count} registros de Sales Orders importados para o Supabase`);
+                        } catch (error) {
+                            console.error('Erro ao importar dados para o Supabase:', error);
+                            alert('Erro ao importar dados para o Supabase. Verifique o console para mais detalhes.');
+                        }
                     }
                 } else if (fileType === 'backoffice') {
                     backOfficeData = jsonData;
                     console.log('Dados do Back Office carregados:', backOfficeData.slice(0, 2));
+                    
+                    // Criar lote de importação se ainda não existir
+                    if (!currentBatchId) {
+                        try {
+                            const batchInfo = {
+                                batchDate: new Date().toISOString().split('T')[0],
+                                deliveriesFilename: file.name
+                            };
+                            const batch = await createImportBatch(batchInfo);
+                            currentBatchId = batch.id;
+                            console.log('Lote de importação criado:', currentBatchId);
+                            
+                            // Importar dados para o Supabase
+                            const result = await importDeliveries(backOfficeData, currentBatchId);
+                            console.log(`${result.count} registros de Deliveries importados para o Supabase`);
+                        } catch (error) {
+                            console.error('Erro ao criar lote de importação ou importar dados:', error);
+                            alert('Erro ao importar dados para o Supabase. Verifique o console para mais detalhes.');
+                        }
+                    } else {
+                        try {
+                            // Importar dados para o Supabase
+                            const result = await importDeliveries(backOfficeData, currentBatchId);
+                            console.log(`${result.count} registros de Deliveries importados para o Supabase`);
+                        } catch (error) {
+                            console.error('Erro ao importar dados para o Supabase:', error);
+                            alert('Erro ao importar dados para o Supabase. Verifique o console para mais detalhes.');
+                        }
+                    }
                 } else if (fileType === 'caixa') {
                     caixaData = jsonData;
                     console.log('Dados da Caixa carregados:', caixaData.slice(0, 2));
+                    
+                    // Importar dados para o Supabase
+                    if (currentBatchId) {
+                        try {
+                            // Atualizar o lote de importação com o nome do arquivo de caixa
+                            await supabase
+                                .from('import_batches')
+                                .update({ cash_filename: file.name })
+                                .eq('id', currentBatchId);
+                            
+                            // Importar dados para o Supabase
+                            const result = await importCashRecords(caixaData, currentBatchId);
+                            console.log(`${result.count} registros de Caixa importados para o Supabase`);
+                        } catch (error) {
+                            console.error('Erro ao importar dados para o Supabase:', error);
+                            alert('Erro ao importar dados para o Supabase. Verifique o console para mais detalhes.');
+                        }
+                    } else {
+                        console.warn('Nenhum lote de importação criado. Crie um lote importando Sales Orders ou Deliveries primeiro.');
+                        alert('Por favor, importe os arquivos Sales Orders ou Deliveries antes de importar o arquivo de Caixa.');
+                    }
                 }
                 
                 // Verificar se ambos os arquivos iniciais foram carregados
@@ -142,193 +209,30 @@ document.addEventListener('DOMContentLoaded', function() {
         reader.readAsArrayBuffer(file);
     }
     
-    // Função para verificar se é um arquivo Odoo (sale.booking ou similar)
-    function isOdooFile(data) {
-        if (data.length === 0) return false;
-        
-        // Verificar se tem as colunas esperadas do arquivo sale.booking ou similar
-        const firstRow = data[0];
-        
-        // Verificar colunas principais
-        const hasImma = firstRow.hasOwnProperty('imma');
-        const hasDateStart = firstRow.hasOwnProperty('date_start');
-        const hasParkingName = firstRow.hasOwnProperty('parking_name');
-        
-        // Verificar colunas alternativas que podem indicar um arquivo Odoo
-        const hasLicensePlate = firstRow.hasOwnProperty('licensePlate') || firstRow.hasOwnProperty('license_plate');
-        const hasBookingDate = firstRow.hasOwnProperty('bookingDate') || firstRow.hasOwnProperty('booking_date');
-        const hasParkBrand = firstRow.hasOwnProperty('parkBrand') || firstRow.hasOwnProperty('park_brand');
-        
-        // Verificar outras colunas comuns em arquivos Odoo
-        const hasPrice = firstRow.hasOwnProperty('price');
-        const hasDateEnd = firstRow.hasOwnProperty('date_end');
-        
-        const hasExpectedColumns = hasImma || hasDateStart || hasParkingName || 
-                                  (hasLicensePlate && (hasBookingDate || hasParkBrand)) ||
-                                  (hasLicensePlate && hasPrice);
-        
-        console.log("Verificação de arquivo Odoo:", {
-            hasImma,
-            hasDateStart,
-            hasParkingName,
-            hasLicensePlate,
-            hasBookingDate,
-            hasParkBrand,
-            hasPrice,
-            hasDateEnd,
-            resultado: hasExpectedColumns
-        });
-        
-        return hasExpectedColumns;
-    }
-    
-    // Função para normalizar matrículas
-    function normalizeLicensePlate(plate) {
-        if (!plate) return '';
-        
-        // Converter para string
-        const plateStr = String(plate);
-        
-        // Remover espaços, traços, pontos e outros caracteres especiais
-        return plateStr.replace(/[\s\-\.\,\/\\\(\)\[\]\{\}\+\*\?\^\$\|]/g, '').toLowerCase();
-    }
-    
-    // Função para transformar dados do Odoo (sale.booking ou similar)
-    function transformOdooData(data) {
-        console.log('Iniciando transformação dos dados do Odoo');
-        
-        // Criar cópia dos dados para não modificar os originais
-        const transformedData = [];
-        
-        // Transformar cada registro
-        for (let i = 0; i < data.length; i++) {
-            const record = data[i];
-            const newRecord = {};
+    // Evento para o botão de processamento
+    processFilesBtn.addEventListener('click', function() {
+        if (odooData && backOfficeData) {
+            // Chamar função de comparação do arquivo comparator.js
+            window.compareOdooBackOffice(odooData, backOfficeData);
             
-            // Mapear campos do arquivo sale.booking para o formato padrão
-            // Campos obrigatórios para o comparator.js
-            newRecord.licensePlate = normalizeLicensePlate(record.imma || record.licensePlate || record.license_plate || record.matricula || '');
-            newRecord.bookingPrice = record.price ? Number(record.price) : (record.bookingPrice ? Number(record.bookingPrice) : (record.preco ? Number(record.preco) : 0));
-            newRecord.parkBrand = standardizeParkName(record.parking_name || record.parkBrand || record.park_brand || record.parque || '');
-            
-            // Normalizar o campo share como número
-            newRecord.share = record.share != null ? Number(record.share) : 0;
-            
-            // Campos adicionais
-            newRecord.bookingDate = formatDate(record.date_start || record.bookingDate || record.booking_date || record.data_reserva || '');
-            newRecord.checkIn = formatDate(record.date_checkin || record.checkIn || record.check_in || record.data_entrada || '');
-            newRecord.checkOut = formatDate(record.date_end || record.checkOut || record.check_out || record.data_saida || '');
-            newRecord.priceOnDelivery = record.price_to_pay ? Number(record.price_to_pay) : (record.priceOnDelivery ? Number(record.priceOnDelivery) : (record.preco_entrega ? Number(record.preco_entrega) : 0));
-            
-            // Campos para método de pagamento e condutor
-            newRecord.paymentMethod = record.payment_method || record.paymentMethod || record.metodo_pagamento || record.metodoPagamento || '';
-            newRecord.driver = record.driver || record.condutor || record.driverName || record.driver_name || record.conductorEntrega || record.conductorRecogida || '';
-            
-            // Adicionar campos originais para referência
-            newRecord.original_imma = record.imma || record.licensePlate || record.license_plate || record.matricula || '';
-            newRecord.original_date_start = record.date_start || record.bookingDate || record.booking_date || record.data_reserva || '';
-            newRecord.original_date_checkin = record.date_checkin || record.checkIn || record.check_in || record.data_entrada || '';
-            newRecord.original_date_end = record.date_end || record.checkOut || record.check_out || record.data_saida || '';
-            newRecord.original_parking_name = record.parking_name || record.parkBrand || record.park_brand || record.parque || '';
-            newRecord.original_price = record.price || record.bookingPrice || record.preco || 0;
-            newRecord.original_price_to_pay = record.price_to_pay || record.priceOnDelivery || record.preco_entrega || 0;
-            
-            if (i < 2) {
-                console.log(`Registro Odoo transformado ${i+1}:`, newRecord);
-            }
-            
-            transformedData.push(newRecord);
+            // Mudar para a aba de comparação
+            const compareTab = document.querySelector('.nav-tab[data-tab="compare"]');
+            changeTab(compareTab);
+        } else {
+            alert('Por favor, carregue os arquivos Odoo e Back Office antes de prosseguir.');
         }
-        
-        console.log(`Transformação do Odoo concluída. Registros originais: ${data.length}, Registros transformados: ${transformedData.length}`);
-        return transformedData;
-    }
+    });
     
-    // Função para padronizar nomes de parques
-    function standardizeParkName(parkName) {
-        if (!parkName) return '';
-        
-        // Converter para string e para minúsculas inicialmente para processamento
-        const name = String(parkName).toLowerCase();
-        
-        // Remover palavras como "parking", "estacionamento", "park", "parque"
-        let cleanName = name
-            .replace(/\s+parking\b/g, '')
-            .replace(/\s+estacionamento\b/g, '')
-            .replace(/\s+park\b/g, '')
-            .replace(/\s+parque\b/g, '');
-            
-        // Retornar o nome em MAIÚSCULAS
-        return cleanName.trim().toUpperCase();
-    }
-    
-    // Função para formatar data
-    function formatDate(dateValue) {
-        if (!dateValue) return '';
-        
-        try {
-            let dateObj;
-            
-            // Verificar se é um número (timestamp)
-            if (typeof dateValue === 'number' || !isNaN(Number(dateValue))) {
-                // Converter para número se for string numérica
-                const timestamp = typeof dateValue === 'number' ? dateValue : Number(dateValue);
-                
-                // Verificar se é um timestamp em segundos (Odoo) ou milissegundos
-                dateObj = timestamp > 10000000000 ? new Date(timestamp) : new Date(timestamp * 1000);
-            } 
-            // Verificar se é uma string no formato "dd/mm/yyyy, hh:mm"
-            else if (typeof dateValue === 'string' && dateValue.includes('/')) {
-                // Remover a vírgula que está causando problemas
-                const cleanDateValue = dateValue.replace(/,/g, ' ');
-                
-                const parts = cleanDateValue.split(/[\/\s:]/);
-                if (parts.length >= 5) {
-                    const day = parseInt(parts[0], 10);
-                    const month = parseInt(parts[1], 10) - 1; // Mês em JavaScript é 0-indexed
-                    const year = parseInt(parts[2], 10);
-                    const hour = parseInt(parts[3], 10);
-                    const minute = parseInt(parts[4], 10);
-                    const second = parts.length >= 6 ? parseInt(parts[5], 10) : 0;
-                    dateObj = new Date(year, month, day, hour, minute, second);
-                } else {
-                    // Tentar parse padrão
-                    dateObj = new Date(cleanDateValue);
-                }
-            }
-            // Verificar se é uma string no formato "yyyy-mm-dd hh:mm:ss"
-            else if (typeof dateValue === 'string' && dateValue.includes('-')) {
-                dateObj = new Date(dateValue);
-            }
-            // Verificar se já é um objeto Date
-            else if (dateValue instanceof Date) {
-                dateObj = dateValue;
-            }
-            else if (typeof dateValue === 'string' && dateValue.includes('Timestamp')) {
-                const timestampStr = String(dateValue);
-                const secondsMatch = timestampStr.match(/seconds=(\d+)/);
-                if (secondsMatch && secondsMatch[1]) {
-                    const seconds = parseInt(secondsMatch[1]);
-                    dateObj = new Date(seconds * 1000);
-                } else {
-                    // Tentar parse padrão como último recurso
-                    dateObj = new Date(dateValue);
-                }
-            }
-            else {
-                // Tentar parse padrão como último recurso
-                dateObj = new Date(dateValue);
-            }
-            
-            // Verificar se a data é válida
-            if (isNaN(dateObj.getTime())) {
-                console.error(`Data inválida: ${dateValue}`);
-                return dateValue;
-            }
-            
-            // Formatar para dd/mm/aaaa hh:mm:ss
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const year = dateObj.getFullYear();
-            const hours = String(dateObj.get
-(Content truncated due to size limit. Use line ranges to read in chunks)
+    // Exportar as variáveis e funções para uso global
+    window.fileProcessor = {
+        odooData: () => odooData,
+        backOfficeData: () => backOfficeData,
+        caixaData: () => caixaData,
+        setOdooData: (data) => { odooData = data; },
+        setBackOfficeData: (data) => { backOfficeData = data; },
+        setCaixaData: (data) => { 
+            caixaData = data;
+            console.log('Dados da Caixa atualizados via API:', caixaData);
+        }
+    };
+});
