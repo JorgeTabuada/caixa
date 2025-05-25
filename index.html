@@ -12,6 +12,34 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Supabase Utils -->
     <script src="js/supabase.js"></script>
+    <script>
+        // Verificar autenticação
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.supabaseUtils) {
+                window.supabaseUtils.checkSession().then(session => {
+                    if (!session) {
+                        // Não está autenticado, redirecionar para a página de login
+                        window.location.href = 'login.html';
+                    } else {
+                        console.log('Usuário autenticado:', session.user.email);
+                        // Adicionar informações do usuário na interface
+                        const userInfoElement = document.createElement('span');
+                        userInfoElement.id = 'user-info';
+                        userInfoElement.innerHTML = `<i class="fas fa-user"></i> ${session.user.email} | <a href="#" id="logout-link">Sair</a>`;
+                        document.querySelector('.session-info').appendChild(userInfoElement);
+                        
+                        // Adicionar evento de logout
+                        document.getElementById('logout-link').addEventListener('click', function(e) {
+                            e.preventDefault();
+                            window.supabaseUtils.signOut().then(() => {
+                                window.location.href = 'login.html';
+                            });
+                        });
+                    }
+                });
+            }
+        });
+    </script>
 </head>
 <body>
     <!-- Cabeçalho -->

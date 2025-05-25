@@ -1,438 +1,115 @@
 // Dashboard e Estatísticas
 document.addEventListener('DOMContentLoaded', function() {
-    // Elementos da interface de dashboard
-    const entregasEfetuadasElement = document.getElementById('entregas-efetuadas');
-    const entregasPrevistasElement = document.getElementById('entregas-previstas');
-    const percentualEntregasElement = document.getElementById('percentual-entregas');
+    // Elementos da interface do dashboard
+    const dashboardContainer = document.getElementById('dashboard-container');
+    const loadSupabaseDataBtn = document.getElementById('load-supabase-data-btn');
     
-    const totalCaixaElement = document.getElementById('total-caixa');
-    const totalNumerarioElement = document.getElementById('total-numerario');
-    const totalMultibancoElement = document.getElementById('total-multibanco');
-    const totalNoPayElement = document.getElementById('total-nopay');
-    
-    const countNumerarioElement = document.getElementById('count-numerario');
-    const countMultibancoElement = document.getElementById('count-multibanco');
-    const countNoPayElement = document.getElementById('count-nopay');
-    const countTotalElement = document.getElementById('count-total');
-    
-    const previstoBOElement = document.getElementById('previsto-bo');
-    const previstoOdooElement = document.getElementById('previsto-odoo');
-    const efetivaCaixaElement = document.getElementById('efetiva-caixa');
-    const diferencaCaixaElement = document.getElementById('diferenca-caixa');
-    
-    const condutorStatsContainer = document.getElementById('condutor-stats-container');
-    const allDeliveriesTable = document.getElementById('all-deliveries-table').querySelector('tbody');
-    
-    // Variáveis para armazenar dados
+    // Dados para o dashboard
     let deliveryData = [];
-    let comparisonData = [];
     
-    // Função para inicializar dashboard
-    function initDashboard() {
-        // Verificar se há dados disponíveis no Supabase
-        if (window.supabaseUtils) {
-            console.log('Verificando dados no Supabase...');
-            
-            window.supabaseUtils.getDeliveries().then(res => {
-                if (res.data && res.data.length > 0) {
-                    console.log('Dados encontrados no Supabase:', res.data);
-                    
-                    // Perguntar ao usuário se deseja carregar dados do Supabase
-                    if (confirm('Foram encontrados dados armazenados no Supabase. Deseja carregá-los?')) {
-                        // Usar dados do Supabase
-                        setDeliveryData(res.data);
-                        return;
-                    }
-                }
-                
-                // Se não houver dados no Supabase ou o usuário não quiser carregá-los,
-                // continuar com o fluxo normal
-                console.log('Usando dados locais para o dashboard');
-            }).catch(error => {
-                console.error('Erro ao buscar dados do Supabase:', error);
-            });
-        }
-    }
-    
-    // Função para definir dados de entrega
-    function setDeliveryData(data) {
+    // Função para inicializar o dashboard
+    function initDashboard(data) {
         deliveryData = data;
         
-        // Obter dados de comparação
-        comparisonData = window.comparator ? window.comparator.getResults() : { all: [], inconsistent: [], missing: [] };
+        if (!dashboardContainer) return;
         
-        // Renderizar dashboard
-        renderDashboard();
-    }
-    
-    // Função para renderizar dashboard
-    function renderDashboard() {
-        if (!deliveryData || deliveryData.length === 0) {
-            console.warn('Nenhum dado de entrega disponível para o dashboard.');
-            return;
-        }
-        
-        // Calcular estatísticas
-        const stats = calculateStats();
-        
-        // Atualizar elementos da interface
-        updateDashboardUI(stats);
-        
-        // Renderizar gráficos
-        renderCharts(stats);
-        
-        // Renderizar tabela de todas as entregas
-        renderAllDeliveriesTable();
-    }
-    
-    // Função para calcular estatísticas
-    function calculateStats() {
-        // Estatísticas de entregas
-        const entregasEfetuadas = deliveryData.length;
-        const entregasPrevistas = comparisonData.all ? comparisonData.all.length : 0;
-        const percentualEntregas = entregasPrevistas > 0 ? Math.round((entregasEfetuadas / entregasPrevistas) * 100) : 0;
-        
-        // Estatísticas de valores
-        let totalCaixa = 0;
-        let totalNumerario = 0;
-        let totalMultibanco = 0;
-        let totalNoPay = 0;
-        
-        let countNumerario = 0;
-        let countMultibanco = 0;
-        let countNoPay = 0;
-        
-        // Estatísticas por condutor
-        const condutorStats = {};
-        
-        // Estatísticas por marca
-        const marcaStats = {};
-        
-        // Estatísticas por método de pagamento
-        const paymentMethodStats = {};
-        
-        // Calcular estatísticas
-        deliveryData.forEach(delivery => {
-            const price = parseFloat(delivery.priceOnDelivery) || 0;
-            
-            // Total da caixa
-            totalCaixa += price;
-            
-            // Por método de pagamento
-            const paymentMethod = delivery.paymentMethod ? delivery.paymentMethod.toLowerCase() : '';
-            
-            if (paymentMethod.includes('numerario') || paymentMethod.includes('numerário') || paymentMethod === 'cash') {
-                totalNumerario += price;
-                countNumerario++;
-            } else if (paymentMethod.includes('multibanco') || paymentMethod.includes('card') || paymentMethod === 'mb') {
-                totalMultibanco += price;
-                countMultibanco++;
-            } else if (paymentMethod.includes('no pay') || paymentMethod === 'nopay') {
-                totalNoPay += price;
-                countNoPay++;
-            }
-            
-            // Por condutor
-            const condutor = delivery.condutorEntrega || 'Desconhecido';
-            if (!condutorStats[condutor]) {
-                condutorStats[condutor] = {
-                    count: 0,
-                    total: 0,
-                    numerario: 0,
-                    multibanco: 0,
-                    nopay: 0
-                };
-            }
-            
-            condutorStats[condutor].count++;
-            condutorStats[condutor].total += price;
-            
-            if (paymentMethod.includes('numerario') || paymentMethod.includes('numerário') || paymentMethod === 'cash') {
-                condutorStats[condutor].numerario += price;
-            } else if (paymentMethod.includes('multibanco') || paymentMethod.includes('card') || paymentMethod === 'mb') {
-                condutorStats[condutor].multibanco += price;
-            } else if (paymentMethod.includes('no pay') || paymentMethod === 'nopay') {
-                condutorStats[condutor].nopay += price;
-            }
-            
-            // Por marca
-            const marca = delivery.parkBrand || (delivery.validatedRecord ? delivery.validatedRecord.parkBrand : 'Desconhecida');
-            if (!marcaStats[marca]) {
-                marcaStats[marca] = {
-                    count: 0,
-                    total: 0
-                };
-            }
-            
-            marcaStats[marca].count++;
-            marcaStats[marca].total += price;
-            
-            // Por método de pagamento
-            const methodKey = paymentMethod || 'Desconhecido';
-            if (!paymentMethodStats[methodKey]) {
-                paymentMethodStats[methodKey] = {
-                    count: 0,
-                    total: 0
-                };
-            }
-            
-            paymentMethodStats[methodKey].count++;
-            paymentMethodStats[methodKey].total += price;
-        });
-        
-        // Calcular valores previstos
-        let previstoBo = 0;
-        let previstoOdoo = 0;
-        
-        if (comparisonData.all) {
-            comparisonData.all.forEach(record => {
-                previstoBo += parseFloat(record.bookingPriceBO) || 0;
-                previstoOdoo += parseFloat(record.bookingPriceOdoo) || 0;
-            });
-        }
-        
-        // Calcular diferença
-        const diferenca = totalCaixa - previstoBo;
-        
-        return {
-            entregasEfetuadas,
-            entregasPrevistas,
-            percentualEntregas,
-            totalCaixa,
-            totalNumerario,
-            totalMultibanco,
-            totalNoPay,
-            countNumerario,
-            countMultibanco,
-            countNoPay,
-            countTotal: entregasEfetuadas,
-            previstoBo,
-            previstoOdoo,
-            efetivaCaixa: totalCaixa,
-            diferenca,
-            condutorStats,
-            marcaStats,
-            paymentMethodStats
-        };
-    }
-    
-    // Função para atualizar interface do dashboard
-    function updateDashboardUI(stats) {
-        // Atualizar estatísticas de entregas
-        entregasEfetuadasElement.textContent = stats.entregasEfetuadas;
-        entregasPrevistasElement.textContent = stats.entregasPrevistas;
-        percentualEntregasElement.textContent = stats.percentualEntregas + '%';
-        
-        // Atualizar classe de status do percentual
-        if (stats.percentualEntregas >= 90) {
-            percentualEntregasElement.className = 'status-success';
-        } else if (stats.percentualEntregas >= 70) {
-            percentualEntregasElement.className = 'status-warning';
-        } else {
-            percentualEntregasElement.className = 'status-error';
-        }
-        
-        // Atualizar estatísticas de valores
-        totalCaixaElement.textContent = formatCurrency(stats.totalCaixa);
-        totalNumerarioElement.textContent = formatCurrency(stats.totalNumerario);
-        totalMultibancoElement.textContent = formatCurrency(stats.totalMultibanco);
-        totalNoPayElement.textContent = formatCurrency(stats.totalNoPay);
-        
-        // Atualizar estatísticas de contagem
-        countNumerarioElement.textContent = stats.countNumerario;
-        countMultibancoElement.textContent = stats.countMultibanco;
-        countNoPayElement.textContent = stats.countNoPay;
-        countTotalElement.textContent = stats.countTotal;
-        
-        // Atualizar estatísticas comparativas
-        previstoBOElement.textContent = formatCurrency(stats.previstoBo);
-        previstoOdooElement.textContent = formatCurrency(stats.previstoOdoo);
-        efetivaCaixaElement.textContent = formatCurrency(stats.efetivaCaixa);
-        diferencaCaixaElement.textContent = formatCurrency(stats.diferenca);
-        
-        // Atualizar classe de status da diferença
-        if (stats.diferenca === 0) {
-            diferencaCaixaElement.className = 'status-success';
-        } else if (Math.abs(stats.diferenca) <= 10) {
-            diferencaCaixaElement.className = 'status-warning';
-        } else {
-            diferencaCaixaElement.className = 'status-error';
-        }
-        
-        // Atualizar estatísticas por condutor
-        renderCondutorStats(stats.condutorStats);
-    }
-    
-    // Função para renderizar estatísticas por condutor
-    function renderCondutorStats(condutorStats) {
-        // Limpar container
-        condutorStatsContainer.innerHTML = '';
+        // Limpar dashboard
+        dashboardContainer.innerHTML = '';
         
         // Verificar se há dados
-        if (Object.keys(condutorStats).length === 0) {
-            condutorStatsContainer.innerHTML = '<p class="text-center">Nenhum dado de condutor disponível.</p>';
+        if (!data || data.length === 0) {
+            dashboardContainer.innerHTML = '<div class="alert alert-warning">Nenhum dado disponível para exibição. Por favor, processe os arquivos primeiro.</div>';
             return;
         }
+        
+        // Criar cards de estatísticas
+        createStatisticsCards(data);
+        
+        // Criar tabela de entregas
+        createDeliveryTable(data);
+    }
+    
+    // Função para criar cards de estatísticas
+    function createStatisticsCards(data) {
+        // Calcular estatísticas
+        const totalDeliveries = data.length;
+        const totalValue = data.reduce((sum, delivery) => sum + parseFloat(delivery.priceOnDelivery || 0), 0).toFixed(2);
+        const validatedDeliveries = data.filter(d => d.status === 'validated').length;
+        const inconsistentDeliveries = data.filter(d => d.status === 'inconsistent').length;
+        
+        // Criar container para cards
+        const statsContainer = document.createElement('div');
+        statsContainer.className = 'statistics-container';
+        
+        // Adicionar cards
+        statsContainer.innerHTML = `
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-car"></i></div>
+                <div class="stat-content">
+                    <div class="stat-value">${totalDeliveries}</div>
+                    <div class="stat-label">Total de Entregas</div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-euro-sign"></i></div>
+                <div class="stat-content">
+                    <div class="stat-value">${totalValue} €</div>
+                    <div class="stat-label">Valor Total</div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                <div class="stat-content">
+                    <div class="stat-value">${validatedDeliveries}</div>
+                    <div class="stat-label">Entregas Validadas</div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="stat-content">
+                    <div class="stat-value">${inconsistentDeliveries}</div>
+                    <div class="stat-label">Inconsistências</div>
+                </div>
+            </div>
+        `;
+        
+        // Adicionar ao dashboard
+        dashboardContainer.appendChild(statsContainer);
+    }
+    
+    // Função para criar tabela de entregas
+    function createDeliveryTable(data) {
+        // Criar container para tabela
+        const tableContainer = document.createElement('div');
+        tableContainer.className = 'table-container mt-20';
         
         // Criar tabela
         const table = document.createElement('table');
         table.className = 'table';
         
-        // Criar cabeçalho
-        const thead = document.createElement('thead');
-        thead.innerHTML = `
-            <tr>
-                <th>Condutor</th>
-                <th>Entregas</th>
-                <th>Total</th>
-                <th>Numerário</th>
-                <th>Multibanco</th>
-                <th>No Pay</th>
-            </tr>
+        // Cabeçalho da tabela
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th>Alocação</th>
+                    <th>Matrícula</th>
+                    <th>Data Checkout</th>
+                    <th>Método Pagamento</th>
+                    <th>Valor</th>
+                    <th>Condutor</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
         `;
-        table.appendChild(thead);
         
-        // Criar corpo da tabela
-        const tbody = document.createElement('tbody');
+        // Adicionar linhas à tabela
+        const tbody = table.querySelector('tbody');
         
-        // Adicionar linha para cada condutor
-        Object.keys(condutorStats).forEach(condutor => {
-            const stats = condutorStats[condutor];
-            
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${condutor}</td>
-                <td>${stats.count}</td>
-                <td>${formatCurrency(stats.total)}</td>
-                <td>${formatCurrency(stats.numerario)}</td>
-                <td>${formatCurrency(stats.multibanco)}</td>
-                <td>${formatCurrency(stats.nopay)}</td>
-            `;
-            
-            tbody.appendChild(row);
-        });
-        
-        table.appendChild(tbody);
-        condutorStatsContainer.appendChild(table);
-    }
-    
-    // Função para renderizar gráficos
-    function renderCharts(stats) {
-        // Gráfico de marcas
-        renderBrandsChart(stats.marcaStats);
-        
-        // Gráfico de métodos de pagamento
-        renderPaymentsChart(stats.paymentMethodStats);
-    }
-    
-    // Função para renderizar gráfico de marcas
-    function renderBrandsChart(marcaStats) {
-        const ctx = document.getElementById('chart-brands').getContext('2d');
-        
-        // Destruir gráfico existente
-        if (window.brandsChart) {
-            window.brandsChart.destroy();
-        }
-        
-        // Preparar dados
-        const labels = Object.keys(marcaStats);
-        const data = labels.map(marca => marcaStats[marca].count);
-        
-        // Criar gráfico
-        window.brandsChart = new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Entregas por Marca',
-                    data: data,
-                    backgroundColor: [
-                        '#4CAF50',
-                        '#2196F3',
-                        '#FFC107',
-                        '#F44336',
-                        '#9C27B0',
-                        '#FF9800',
-                        '#795548',
-                        '#607D8B'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Entregas por Marca'
-                    }
-                }
-            }
-        });
-    }
-    
-    // Função para renderizar gráfico de métodos de pagamento
-    function renderPaymentsChart(paymentMethodStats) {
-        const ctx = document.getElementById('chart-payments').getContext('2d');
-        
-        // Destruir gráfico existente
-        if (window.paymentsChart) {
-            window.paymentsChart.destroy();
-        }
-        
-        // Preparar dados
-        const labels = Object.keys(paymentMethodStats);
-        const data = labels.map(method => paymentMethodStats[method].count);
-        
-        // Criar gráfico
-        window.paymentsChart = new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Entregas por Método de Pagamento',
-                    data: data,
-                    backgroundColor: [
-                        '#4CAF50',
-                        '#2196F3',
-                        '#FFC107',
-                        '#F44336',
-                        '#9C27B0',
-                        '#FF9800'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Entregas por Método de Pagamento'
-                    }
-                }
-            }
-        });
-    }
-    
-    // Função para renderizar tabela de todas as entregas
-    function renderAllDeliveriesTable() {
-        // Limpar tabela
-        allDeliveriesTable.innerHTML = '';
-        
-        if (deliveryData.length === 0) {
-            const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="7" class="text-center">Nenhum dado disponível.</td>';
-            allDeliveriesTable.appendChild(row);
-            return;
-        }
-        
-        // Adicionar cada entrega à tabela
-        deliveryData.forEach(delivery => {
+        data.forEach(delivery => {
             const row = document.createElement('tr');
             
             // Adicionar classe de status
@@ -442,49 +119,93 @@ document.addEventListener('DOMContentLoaded', function() {
                 row.classList.add('status-success');
             }
             
-            // Criar células
+            // Adicionar células
             row.innerHTML = `
                 <td>${delivery.alocation}</td>
                 <td>${delivery.licensePlate}</td>
                 <td>${delivery.checkOut}</td>
-                <td>${delivery.parkBrand || (delivery.validatedRecord ? delivery.validatedRecord.parkBrand : '')}</td>
                 <td>${delivery.paymentMethod}</td>
                 <td>${delivery.priceOnDelivery} €</td>
+                <td>${delivery.condutorEntrega}</td>
                 <td>${getStatusText(delivery.status)}</td>
             `;
             
-            allDeliveriesTable.appendChild(row);
+            tbody.appendChild(row);
         });
+        
+        // Adicionar tabela ao container
+        tableContainer.appendChild(table);
+        
+        // Adicionar ao dashboard
+        dashboardContainer.appendChild(tableContainer);
     }
     
-    // Função para formatar moeda
-    function formatCurrency(value) {
-        return value.toFixed(2) + ' €';
-    }
-    
-    // Função para obter texto de status
+    // Função para obter texto do status
     function getStatusText(status) {
         switch (status) {
-            case 'pending':
-                return 'Pendente';
-            case 'inconsistent':
-                return 'Inconsistente';
-            case 'ready':
-                return 'Pronto para Validação';
-            case 'validated':
-                return 'Validado';
-            default:
-                return status;
+            case 'validated': return 'Validado';
+            case 'inconsistent': return 'Inconsistente';
+            case 'missing': return 'Em Falta';
+            case 'ready': return 'Pronto para Validação';
+            default: return status;
         }
     }
     
-    // Inicializar dashboard
-    initDashboard();
+    // Evento para carregar dados do Supabase
+    if (loadSupabaseDataBtn) {
+        loadSupabaseDataBtn.addEventListener('click', function() {
+            // Verificar autenticação
+            if (window.supabaseUtils) {
+                window.supabaseUtils.checkSession().then(session => {
+                    if (!session) {
+                        alert('Você precisa estar autenticado para carregar dados do Supabase. Redirecionando para a página de login...');
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    
+                    // Mostrar mensagem de carregamento
+                    loadSupabaseDataBtn.textContent = 'Carregando...';
+                    loadSupabaseDataBtn.disabled = true;
+                    
+                    // Buscar dados do Supabase
+                    window.supabaseUtils.getDeliveries().then(res => {
+                        // Restaurar botão
+                        loadSupabaseDataBtn.textContent = 'Carregar Dados do Supabase';
+                        loadSupabaseDataBtn.disabled = false;
+                        
+                        if (!res.error && res.data && res.data.length > 0) {
+                            // Inicializar dashboard com dados do Supabase
+                            initDashboard(res.data);
+                            alert(`${res.data.length} registros carregados do Supabase com sucesso!`);
+                        } else if (!res.error && (!res.data || res.data.length === 0)) {
+                            alert('Nenhum dado encontrado no Supabase.');
+                        } else {
+                            if (res.error.message.includes('não autenticado')) {
+                                alert('Sessão expirada. Por favor, faça login novamente.');
+                                window.location.href = 'login.html';
+                            } else {
+                                alert('Erro ao carregar dados do Supabase: ' + res.error.message);
+                            }
+                        }
+                    }).catch(error => {
+                        // Restaurar botão em caso de erro
+                        loadSupabaseDataBtn.textContent = 'Carregar Dados do Supabase';
+                        loadSupabaseDataBtn.disabled = false;
+                        
+                        alert('Erro ao carregar dados do Supabase: ' + error.message);
+                    });
+                });
+            } else {
+                alert('Supabase não está disponível. Verifique se o script foi carregado corretamente.');
+            }
+        });
+    }
     
     // Exportar funções para uso global
     window.dashboard = {
-        setDeliveryData: setDeliveryData,
-        getDeliveryData: () => deliveryData,
-        renderDashboard: renderDashboard
+        init: initDashboard,
+        getDeliveryData: function() {
+            return deliveryData;
+        }
     };
 });

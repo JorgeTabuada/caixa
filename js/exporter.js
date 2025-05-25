@@ -42,37 +42,50 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Evento para exportar para Supabase
     exportSupabaseBtn.addEventListener('click', function() {
-        // Obter dados do dashboard
-        const deliveryData = window.dashboard ? window.dashboard.getDeliveryData() : [];
-        
-        if (!deliveryData || deliveryData.length === 0) {
-            alert('Nenhum dado disponível para exportação. Por favor, processe os arquivos primeiro.');
-            return;
-        }
-        
-        // Verificar se o Supabase está disponível
+        // Verificar autenticação
         if (window.supabaseUtils) {
-            // Mostrar mensagem de carregamento
-            exportSupabaseBtn.textContent = 'Exportando...';
-            exportSupabaseBtn.disabled = true;
-            
-            // Enviar dados para o Supabase
-            window.supabaseUtils.importDeliveries(deliveryData).then(res => {
-                // Restaurar botão
-                exportSupabaseBtn.textContent = 'Exportar para Supabase';
-                exportSupabaseBtn.disabled = false;
-                
-                if (!res.error) {
-                    alert('Dados exportados com sucesso para o Supabase!');
-                } else {
-                    alert('Erro ao exportar para o Supabase: ' + res.error.message);
+            window.supabaseUtils.checkSession().then(session => {
+                if (!session) {
+                    alert('Você precisa estar autenticado para exportar dados para o Supabase. Redirecionando para a página de login...');
+                    window.location.href = 'login.html';
+                    return;
                 }
-            }).catch(error => {
-                // Restaurar botão em caso de erro
-                exportSupabaseBtn.textContent = 'Exportar para Supabase';
-                exportSupabaseBtn.disabled = false;
                 
-                alert('Erro ao exportar para o Supabase: ' + error.message);
+                // Obter dados do dashboard
+                const deliveryData = window.dashboard ? window.dashboard.getDeliveryData() : [];
+                
+                if (!deliveryData || deliveryData.length === 0) {
+                    alert('Nenhum dado disponível para exportação. Por favor, processe os arquivos primeiro.');
+                    return;
+                }
+                
+                // Mostrar mensagem de carregamento
+                exportSupabaseBtn.textContent = 'Exportando...';
+                exportSupabaseBtn.disabled = true;
+                
+                // Enviar dados para o Supabase
+                window.supabaseUtils.importDeliveries(deliveryData).then(res => {
+                    // Restaurar botão
+                    exportSupabaseBtn.textContent = 'Exportar para Supabase';
+                    exportSupabaseBtn.disabled = false;
+                    
+                    if (!res.error) {
+                        alert('Dados exportados com sucesso para o Supabase!');
+                    } else {
+                        if (res.error.message.includes('não autenticado')) {
+                            alert('Sessão expirada. Por favor, faça login novamente.');
+                            window.location.href = 'login.html';
+                        } else {
+                            alert('Erro ao exportar para o Supabase: ' + res.error.message);
+                        }
+                    }
+                }).catch(error => {
+                    // Restaurar botão em caso de erro
+                    exportSupabaseBtn.textContent = 'Exportar para Supabase';
+                    exportSupabaseBtn.disabled = false;
+                    
+                    alert('Erro ao exportar para o Supabase: ' + error.message);
+                });
             });
         } else {
             alert('Supabase não está disponível. Verifique se o script foi carregado corretamente.');
