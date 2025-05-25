@@ -21,6 +21,9 @@ document.addEventListener('DOMContentLoaded', function() {
         valid: []
     };
     
+    // Variável para armazenar dados de comparação
+    let comparisonData = [];
+    
     // Função principal de comparação
     window.compareOdooBackOffice = function(odooData, backOfficeData) {
         // Limpar resultados anteriores
@@ -147,6 +150,9 @@ document.addEventListener('DOMContentLoaded', function() {
             ...comparisonResults.inconsistent,
             ...comparisonResults.missing
         ];
+        
+        // Atualizar dados de comparação
+        comparisonData = comparisonResults.all;
         
         // Atualizar contadores
         inconsistencyCountElement.textContent = comparisonResults.inconsistent.length;
@@ -308,319 +314,232 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Função para mostrar modal de resolução
     function showResolveModal(licensePlate) {
-        const record = comparisonResults.all.find(r => r.licensePlate.toString().toLowerCase() === licensePlate.toString().toLowerCase());
+        const record = comparisonData.find(r => r.licensePlate === licensePlate);
         if (!record) return;
         
+        // Obter ou criar elementos do modal
+        const modalOverlay = document.getElementById('edit-modal-overlay');
         const modalBody = document.getElementById('edit-modal-body');
+        
         if (!modalBody) {
             console.warn('Elemento edit-modal-body não encontrado');
             return;
         }
         
+        // Limpar conteúdo anterior
         modalBody.innerHTML = '';
         
-        // Criar formulário de resolução
+        // Criar formulário de edição
         const form = document.createElement('form');
-        form.id = 'resolve-form';
+        form.id = 'edit-record-form';
         
-        // Adicionar campos conforme o tipo de problema
-        if (record.status === 'inconsistent') {
-            // Formulário para inconsistências
-            form.innerHTML = `
-                <p>Resolva as inconsistências para o registro com matrícula <strong>${record.licensePlate}</strong>:</p>
-                
-                <div class="form-group">
-                    <label class="form-label">Escolha a fonte de dados preferida:</label>
-                    <div>
-                        <input type="radio" id="prefer-backoffice" name="data-source" value="backoffice" checked>
-                        <label for="prefer-backoffice">Usar dados do Back Office</label>
-                    </div>
-                    <div>
-                        <input type="radio" id="prefer-odoo" name="data-source" value="odoo">
-                        <label for="prefer-odoo">Usar dados do Odoo</label>
-                    </div>
-                    <div>
-                        <input type="radio" id="prefer-custom" name="data-source" value="custom">
-                        <label for="prefer-custom">Personalizar</label>
-                    </div>
-                </div>
-                
-                <div id="custom-fields" class="hidden">
-                    ${record.inconsistencies.includes('bookingPrice') ? `
-                        <div class="form-group">
-                            <label class="form-label">Preço de Booking:</label>
-                            <input type="number" class="form-control" id="custom-booking-price" value="${record.bookingPriceBO}">
-                        </div>
-                    ` : ''}
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Observações:</label>
-                    <textarea class="form-control" id="resolution-notes"></textarea>
-                </div>
-            `;
-        } else if (record.status.includes('missing')) {
-            // Formulário para registros ausentes
-            form.innerHTML = `
-                <p>Resolva o problema para o registro com matrícula <strong>${record.licensePlate}</strong> que está ${record.status === 'missing_in_odoo' ? 'ausente no Odoo' : 'ausente no Back Office'}:</p>
-                
-                <div class="form-group">
-                    <label class="form-label">Escolha uma ação:</label>
-                    <div>
-                        <input type="radio" id="action-include" name="missing-action" value="include" checked>
-                        <label for="action-include">Incluir o registro</label>
-                    </div>
-                    <div>
-                        <input type="radio" id="action-ignore" name="missing-action" value="ignore">
-                        <label for="action-ignore">Ignorar (não incluir)</label>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Observações:</label>
-                    <textarea class="form-control" id="resolution-notes"></textarea>
-                </div>
-            `;
-        }
+        // Adicionar campos
+        form.innerHTML = `
+            <h4>Resolver Inconsistência</h4>
+            <p>Matrícula: ${record.licensePlate}</p>
+            <p>Alocação: ${record.alocation}</p>
+            
+            <div class="form-group">
+                <label class="form-label">Preço Booking (BO):</label>
+                <input type="number" class="form-control" id="edit-bo-price" value="${record.bookingPriceBO || 0}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Preço Booking (Odoo):</label>
+                <input type="number" class="form-control" id="edit-odoo-price" value="${record.bookingPriceOdoo || 0}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Observações:</label>
+                <textarea class="form-control" id="edit-notes"></textarea>
+            </div>
+        `;
         
         modalBody.appendChild(form);
         
-        // Adicionar evento para mostrar/ocultar campos personalizados
-        if (record.status === 'inconsistent') {
-            const radioButtons = form.querySelectorAll('input[name="data-source"]');
-            const customFields = form.querySelector('#custom-fields');
-            
-            radioButtons.forEach(radio => {
-                radio.addEventListener('change', function() {
-                    if (this.value === 'custom') {
-                        customFields.classList.remove('hidden');
-                    } else {
-                        customFields.classList.add('hidden');
-                    }
-                });
-            });
+        // Criar ou configurar botão de salvar
+        const modalFooter = document.querySelector('#edit-modal-overlay .modal-footer') || document.createElement('div');
+        
+        if (!modalFooter.classList.contains('modal-footer')) {
+            modalFooter.className = 'modal-footer';
+            if (modalBody.parentNode && !modalBody.parentNode.querySelector('.modal-footer')) {
+                modalBody.parentNode.appendChild(modalFooter);
+            }
         }
         
-        // Configurar botão de salvar
-        const saveButton = document.getElementById('save-resolution-btn');
+        // Limpar e adicionar botão de salvar
+        modalFooter.innerHTML = '';
+        const saveButton = document.createElement('button');
+        saveButton.id = 'save-edit-btn';
+        saveButton.className = 'btn btn-primary';
+        saveButton.textContent = 'Salvar';
         saveButton.onclick = function() {
-            resolveIssue(record);
+            resolveInconsistency(record);
         };
+        modalFooter.appendChild(saveButton);
         
         // Mostrar modal
-        document.getElementById('edit-modal-overlay').style.display = 'flex';
+        if (modalOverlay) {
+            modalOverlay.style.display = 'flex';
+        } else {
+            console.warn('Elemento edit-modal-overlay não encontrado');
+        }
     }
     
-    // Função para resolver problemas
-    function resolveIssue(record) {
-        if (record.status === 'inconsistent') {
-            const dataSource = document.querySelector('input[name="data-source"]:checked').value;
-            const notes = document.getElementById('resolution-notes').value;
-            
-            if (dataSource === 'backoffice') {
-                // Usar dados do Back Office
-                record.resolution = 'use_backoffice';
-                record.resolutionNotes = notes;
-                
-                // Atualizar registro do Odoo com dados do Back Office
-                if (record.inconsistencies.includes('bookingPrice')) {
-                    record.odooRecord.bookingPrice = record.boRecord.bookingPrice;
-                }
-                
-            } else if (dataSource === 'odoo') {
-                // Usar dados do Odoo
-                record.resolution = 'use_odoo';
-                record.resolutionNotes = notes;
-                
-                // Atualizar registro do Back Office com dados do Odoo
-                if (record.inconsistencies.includes('bookingPrice')) {
-                    record.boRecord.bookingPrice = record.odooRecord.bookingPrice;
-                    record.bookingPriceBO = record.odooRecord.bookingPrice;
-                }
-                
-            } else if (dataSource === 'custom') {
-                // Usar dados personalizados
-                record.resolution = 'use_custom';
-                record.resolutionNotes = notes;
-                
-                // Atualizar com valores personalizados
-                if (record.inconsistencies.includes('bookingPrice')) {
-                    const customPrice = parseFloat(document.getElementById('custom-booking-price').value);
-                    record.boRecord.bookingPrice = customPrice;
-                    record.odooRecord.bookingPrice = customPrice;
-                    record.bookingPriceBO = customPrice;
-                    record.bookingPriceOdoo = customPrice;
-                }
-            }
-            
-            // Mover registro para válidos
-            moveRecordToValid(record);
-            
-        } else if (record.status.includes('missing')) {
-            const action = document.querySelector('input[name="missing-action"]:checked').value;
-            const notes = document.getElementById('resolution-notes').value;
-            
-            if (action === 'include') {
-                // Incluir registro
-                record.resolution = 'include';
-                record.resolutionNotes = notes;
-                
-                if (record.status === 'missing_in_odoo') {
-                    // Criar registro no Odoo baseado no Back Office
-                    record.odooRecord = {
-                        ID: 'AUTO_' + Math.floor(Math.random() * 1000000),
-                        licensePlate: record.licensePlate,
-                        bookingPrice: record.boRecord.bookingPrice,
-                        parkBrand: record.boRecord.parkBrand,
-                        checkIn: record.boRecord.checkIn,
-                        stats: 'Auto-created'
-                    };
-                    record.bookingPriceOdoo = record.boRecord.bookingPrice;
-                } else {
-                    // Criar registro no Back Office baseado no Odoo
-                    record.boRecord = {
-                        licensePlate: record.licensePlate,
-                        alocation: 'AUTO_' + Math.floor(Math.random() * 1000000),
-                        bookingPrice: record.odooRecord.bookingPrice,
-                        parkBrand: record.odooRecord.parkBrand,
-                        checkIn: record.odooRecord.checkIn,
-                        stats: 'Auto-created'
-                    };
-                    record.alocation = record.boRecord.alocation;
-                    record.bookingPriceBO = record.odooRecord.bookingPrice;
-                }
-                
-                // Mover registro para válidos
-                moveRecordToValid(record);
-                
-            } else if (action === 'ignore') {
-                // Ignorar registro
-                record.resolution = 'ignore';
-                record.resolutionNotes = notes;
-                
-                // Mover registro para válidos (mas marcado como ignorado)
-                moveRecordToValid(record);
-            }
+    // Função para resolver inconsistência
+    function resolveInconsistency(record) {
+        // Obter valores do formulário
+        const boPriceElement = document.getElementById('edit-bo-price');
+        const odooPriceElement = document.getElementById('edit-odoo-price');
+        const notesElement = document.getElementById('edit-notes');
+        
+        if (!boPriceElement || !odooPriceElement) {
+            console.warn('Elementos de formulário não encontrados');
+            return;
         }
         
-        // Fechar modal
-        document.getElementById('edit-modal-overlay').style.display = 'none';
+        const boPrice = parseFloat(boPriceElement.value);
+        const odooPrice = parseFloat(odooPriceElement.value);
+        const notes = notesElement ? notesElement.value : '';
+        
+        // Atualizar registro
+        record.bookingPriceBO = boPrice;
+        record.bookingPriceOdoo = odooPrice;
+        record.resolution = 'manual';
+        record.resolutionNotes = notes;
+        
+        // Verificar se ainda há inconsistências
+        if (boPrice === odooPrice) {
+            record.status = 'valid';
+            record.inconsistencies = [];
+            
+            // Mover para lista de válidos
+            const index = comparisonResults.inconsistent.findIndex(r => r.licensePlate === record.licensePlate);
+            if (index !== -1) {
+                comparisonResults.inconsistent.splice(index, 1);
+                comparisonResults.valid.push(record);
+            }
+        }
         
         // Atualizar tabela
         renderComparisonTable(comparisonResults.all);
         
         // Atualizar contadores
-        updateCounters();
-        
-        // Verificar se todos os problemas foram resolvidos
-        updateValidateButton();
-    }
-    
-    // Função para mover um registro para a lista de válidos
-    function moveRecordToValid(record) {
-        // Remover das listas de problemas
-        if (record.status === 'inconsistent') {
-            comparisonResults.inconsistent = comparisonResults.inconsistent.filter(r => r.licensePlate.toString().toLowerCase() !== record.licensePlate.toString().toLowerCase());
-        } else if (record.status.includes('missing')) {
-            comparisonResults.missing = comparisonResults.missing.filter(r => r.licensePlate.toString().toLowerCase() !== record.licensePlate.toString().toLowerCase());
-        }
-        
-        // Atualizar status
-        record.status = 'valid';
-        
-        // Adicionar à lista de válidos se ainda não estiver
-        if (!comparisonResults.valid.some(r => r.licensePlate.toString().toLowerCase() === record.licensePlate.toString().toLowerCase())) {
-            comparisonResults.valid.push(record);
-        }
-    }
-    
-    // Função para atualizar contadores
-    function updateCounters() {
         inconsistencyCountElement.textContent = comparisonResults.inconsistent.length;
-        missingCountElement.textContent = comparisonResults.missing.length;
+        
+        // Atualizar botão de validação
+        updateValidateButton();
+        
+        // Fechar modal
+        const modalOverlay = document.getElementById('edit-modal-overlay');
+        if (modalOverlay) {
+            modalOverlay.style.display = 'none';
+        }
     }
     
     // Função para atualizar botão de validação
     function updateValidateButton() {
-        const allResolved = comparisonResults.inconsistent.length === 0 && 
-                           comparisonResults.missing.length === 0;
+        const hasUnresolvedIssues = comparisonResults.inconsistent.some(r => !r.resolution) || 
+                                   comparisonResults.missing.some(r => !r.resolution);
         
-        validateComparisonBtn.disabled = !allResolved;
-    }
-    
-    // Função para obter texto de status
-    function getStatusText(status) {
-        switch (status) {
-            case 'valid':
-                return 'Válido';
-            case 'inconsistent':
-                return 'Inconsistente';
-            case 'missing_in_odoo':
-                return 'Ausente no Odoo';
-            case 'missing_in_backoffice':
-                return 'Ausente no Back Office';
-            default:
-                return status;
+        if (validateComparisonBtn) {
+            validateComparisonBtn.disabled = hasUnresolvedIssues;
         }
     }
     
-    // Função para mudar de aba
-    function changeTab(tabElement) {
-        // Remover classe ativa de todas as abas
-        document.querySelectorAll('.nav-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        
-        // Adicionar classe ativa à aba selecionada
-        tabElement.classList.add('active');
-        
-        // Obter ID da seção correspondente
-        const sectionId = tabElement.getAttribute('data-tab') + '-section';
-        
-        // Ocultar todas as seções
-        document.querySelectorAll('.content-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        
-        // Mostrar seção correspondente
-        document.getElementById(sectionId).classList.add('active');
+    // Função para obter texto do status
+    function getStatusText(status) {
+        switch (status) {
+            case 'valid': return 'Válido';
+            case 'inconsistent': return 'Inconsistente';
+            case 'missing_in_odoo': return 'Ausente no Odoo';
+            case 'missing_in_backoffice': return 'Ausente no Back Office';
+            default: return status;
+        }
     }
     
     // Eventos para botões de filtro
-    showAllBtn.addEventListener('click', function() {
-        renderComparisonTable(comparisonResults.all);
-    });
+    if (showAllBtn) {
+        showAllBtn.addEventListener('click', function() {
+            renderComparisonTable(comparisonResults.all);
+        });
+    }
     
-    showMissingBtn.addEventListener('click', function() {
-        renderComparisonTable(comparisonResults.missing);
-    });
+    if (showMissingBtn) {
+        showMissingBtn.addEventListener('click', function() {
+            renderComparisonTable(comparisonResults.missing);
+        });
+    }
     
-    showInconsistentBtn.addEventListener('click', function() {
-        renderComparisonTable(comparisonResults.inconsistent);
-    });
+    if (showInconsistentBtn) {
+        showInconsistentBtn.addEventListener('click', function() {
+            renderComparisonTable(comparisonResults.inconsistent);
+        });
+    }
     
     // Evento para botão de validação
-    validateComparisonBtn.addEventListener('click', function() {
-        // Atualizar dados do Odoo e Back Office com as resoluções
-        window.fileProcessor.setOdooData(comparisonResults.all.map(r => r.odooRecord).filter(Boolean));
-        window.fileProcessor.setBackOfficeData(comparisonResults.all.map(r => r.boRecord).filter(Boolean));
-        
-        // Mudar para a aba de validação de caixa
-        const validateTab = document.querySelector('.nav-tab[data-tab="validate"]');
-        changeTab(validateTab);
-    });
+    if (validateComparisonBtn) {
+        validateComparisonBtn.addEventListener('click', function() {
+            // Verificar se há inconsistências não resolvidas
+            const hasUnresolvedIssues = comparisonResults.inconsistent.some(r => !r.resolution) || 
+                                       comparisonResults.missing.some(r => !r.resolution);
+            
+            if (hasUnresolvedIssues) {
+                alert('Existem inconsistências não resolvidas. Por favor, resolva todas as inconsistências antes de prosseguir.');
+                return;
+            }
+            
+            // Avançar para a próxima etapa
+            const compareSection = document.getElementById('compare-section');
+            const validateSection = document.getElementById('validate-section');
+            
+            if (compareSection) {
+                compareSection.classList.add('hidden');
+            }
+            
+            if (validateSection) {
+                validateSection.classList.remove('hidden');
+            }
+            
+            // Iniciar validação de caixa automaticamente se houver dados
+            if (window.fileProcessor && window.fileProcessor.getCaixaData()) {
+                console.log('Iniciando validação de caixa automaticamente');
+                window.validateCaixa(window.fileProcessor.getCaixaData());
+            }
+        });
+    }
     
-    // Eventos para modais
-    document.querySelectorAll('.modal-close, .modal-close-btn').forEach(element => {
-        element.addEventListener('click', function() {
-            document.querySelectorAll('.modal-overlay').forEach(modal => {
-                modal.style.display = 'none';
-            });
+    // Eventos para fechar modais
+    document.querySelectorAll('.modal-close, .modal-overlay').forEach(element => {
+        element.addEventListener('click', function(e) {
+            // Fechar apenas se clicou diretamente no overlay ou no botão de fechar
+            if (e.target === this) {
+                const modalOverlay = this.classList.contains('modal-overlay') ? 
+                    this : this.closest('.modal-overlay');
+                
+                if (modalOverlay) {
+                    modalOverlay.style.display = 'none';
+                }
+            }
         });
     });
     
-    // Exportar resultados para uso global
-    window.comparator = {
-        getResults: () => comparisonResults
+    // Fechar modais com tecla ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal-overlay').forEach(modal => {
+                modal.style.display = 'none';
+            });
+        }
+    });
+    
+    // Exportar funções para uso global
+    window.comparatorUtils = {
+        getComparisonResults: function() {
+            return comparisonResults;
+        },
+        getValidatedRecords: function() {
+            return comparisonResults.all.filter(r => r.status === 'valid' || r.resolution);
+        }
     };
 });
