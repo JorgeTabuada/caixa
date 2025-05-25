@@ -255,6 +255,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!delivery) return;
         
         const modalBody = document.getElementById('details-modal-body');
+        if (!modalBody) {
+            console.warn('Elemento details-modal-body não encontrado');
+            return;
+        }
+        
         modalBody.innerHTML = '';
         
         // Criar conteúdo do modal
@@ -330,7 +335,12 @@ document.addEventListener('DOMContentLoaded', function() {
         modalBody.appendChild(content);
         
         // Mostrar modal
-        document.getElementById('details-modal-overlay').style.display = 'flex';
+        const modalOverlay = document.getElementById('details-modal-overlay');
+        if (modalOverlay) {
+            modalOverlay.style.display = 'flex';
+        } else {
+            console.warn('Elemento details-modal-overlay não encontrado');
+        }
     }
     
     // Função para mostrar modal de validação de entrega
@@ -339,6 +349,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!delivery) return;
         
         const modalBody = document.getElementById('validate-delivery-modal-body');
+        if (!modalBody) {
+            console.warn('Elemento validate-delivery-modal-body não encontrado');
+            return;
+        }
+        
         modalBody.innerHTML = '';
         
         // Criar formulário de validação
@@ -434,24 +449,50 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Configurar botão de salvar
         const saveButton = document.getElementById('save-validation-btn');
-        saveButton.onclick = function() {
-            validateDelivery(delivery);
-        };
+        if (saveButton) {
+            saveButton.onclick = function() {
+                validateDelivery(delivery);
+            };
+        } else {
+            console.warn('Elemento save-validation-btn não encontrado');
+        }
         
         // Mostrar modal
-        document.getElementById('validate-delivery-modal-overlay').style.display = 'flex';
+        const modalOverlay = document.getElementById('validate-delivery-modal-overlay');
+        if (modalOverlay) {
+            modalOverlay.style.display = 'flex';
+        } else {
+            console.warn('Elemento validate-delivery-modal-overlay não encontrado');
+        }
     }
     
     // Função para validar entrega
     function validateDelivery(delivery) {
         if (delivery.status === 'inconsistent') {
-            const action = document.querySelector('input[name="delivery-action"]:checked').value;
-            const notes = document.getElementById('validation-notes').value;
+            const actionElement = document.querySelector('input[name="delivery-action"]:checked');
+            if (!actionElement) {
+                console.warn('Nenhuma ação de validação selecionada');
+                return;
+            }
+            const action = actionElement.value;
+            
+            const notesElement = document.getElementById('validation-notes');
+            const notes = notesElement ? notesElement.value : '';
             
             if (action === 'confirm') {
                 // Confirmar entrega
-                const paymentMethod = document.getElementById('payment-method').value;
-                const priceOnDelivery = parseFloat(document.getElementById('price-on-delivery').value);
+                const paymentMethodElement = document.getElementById('payment-method');
+                if (!paymentMethodElement) {
+                    console.warn('Elemento payment-method não encontrado');
+                    return;
+                }
+                const paymentMethod = paymentMethodElement.value;
+                const priceElement = document.getElementById('price-on-delivery');
+                if (!priceElement) {
+                    console.warn('Elemento price-on-delivery não encontrado');
+                    return;
+                }
+                const priceOnDelivery = parseFloat(priceElement.value);
                 
                 delivery.resolution = 'confirmed';
                 delivery.resolutionNotes = notes;

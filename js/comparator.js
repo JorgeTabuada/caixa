@@ -298,7 +298,12 @@ document.addEventListener('DOMContentLoaded', function() {
         modalBody.appendChild(content);
         
         // Mostrar modal
-        document.getElementById('details-modal-overlay').style.display = 'flex';
+        const modalOverlay = document.getElementById('details-modal-overlay');
+        if (modalOverlay) {
+            modalOverlay.style.display = 'flex';
+        } else {
+            console.warn('Elemento details-modal-overlay não encontrado');
+        }
     }
     
     // Função para mostrar modal de resolução
@@ -307,6 +312,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!record) return;
         
         const modalBody = document.getElementById('edit-modal-body');
+        if (!modalBody) {
+            console.warn('Elemento edit-modal-body não encontrado');
+            return;
+        }
+        
         modalBody.innerHTML = '';
         
         // Criar formulário de resolução
