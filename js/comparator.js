@@ -7,6 +7,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const missingCountElement = document.getElementById('missing-count');
     const comparisonTable = document.getElementById('comparison-table').querySelector('tbody');
     const validateComparisonBtn = document.getElementById('validate-comparison-btn');
+
+    if (validateComparisonBtn) {
+        validateComparisonBtn.addEventListener('click', () => {
+            if (validateComparisonBtn.disabled) {
+                console.log('Botão Validar e Avançar está desabilitado.');
+                return; // Do nothing if disabled
+            }
+
+            console.log('Botão Validar e Avançar clicado. Navegando para a aba de Validação de Caixa.');
+            
+            // Switch to the "Validação de Caixa" tab
+            const validateTab = document.querySelector('.nav-tab[data-tab="validate"]');
+            if (validateTab) {
+                validateTab.click();
+            } else {
+                console.error('Não foi possível encontrar a aba de Validação de Caixa.');
+                // Optionally, show an error to the user via showError or alert.
+            }
+        });
+    }
     
     // Botões de filtro
     const showAllBtn = document.getElementById('show-all-btn');

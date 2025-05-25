@@ -94,9 +94,58 @@ function initApp() {
     // Configurar botão de processamento
     const processFilesBtn = document.getElementById('process-files-btn');
     if (processFilesBtn) {
-        processFilesBtn.addEventListener('click', () => {
-            // Implementar lógica de processamento de arquivos
-            console.log('Processando arquivos...');
+        processFilesBtn.addEventListener('click', async () => {
+            processFilesBtn.disabled = true; // Disable button during processing
+
+            try {
+                const odooFile = document.getElementById('odoo-file').files[0];
+                const backofficeFile = document.getElementById('backoffice-file').files[0];
+
+                if (!odooFile || !backofficeFile) {
+                    showError('Por favor, selecione os arquivos Odoo e Back Office.');
+                    processFilesBtn.disabled = false;
+                    return;
+                }
+
+                const readFileAsJson = (file) => {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            try {
+                                const data = new Uint8Array(event.target.result);
+                                const workbook = XLSX.read(data, { type: 'array' });
+                                const sheetName = workbook.SheetNames[0];
+                                const worksheet = workbook.Sheets[sheetName];
+                                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                                resolve(jsonData);
+                            } catch (e) {
+                                reject(new Error(`Erro ao processar o arquivo ${file.name}: ${e.message}`));
+                            }
+                        };
+                        reader.onerror = (event) => {
+                            reject(new Error(`Erro ao ler o arquivo ${file.name}: ${reader.error}`));
+                        };
+                        reader.readAsArrayBuffer(file);
+                    });
+                };
+
+                const odooData = await readFileAsJson(odooFile);
+                const backOfficeData = await readFileAsJson(backofficeFile);
+
+                if (window.compareOdooBackOffice) {
+                    window.compareOdooBackOffice(odooData, backOfficeData);
+                    // Optionally, switch to the comparison tab
+                    // document.querySelector('.nav-tab[data-tab="compare"]').click();
+                } else {
+                    showError('Função de comparação não encontrada. Verifique se comparator.js está carregado.');
+                }
+
+            } catch (error) {
+                console.error('Erro ao processar arquivos:', error);
+                showError(`Erro ao processar arquivos: ${error.message}`);
+            } finally {
+                processFilesBtn.disabled = false; // Re-enable button, or manage state based on success
+            }
         });
     }
     

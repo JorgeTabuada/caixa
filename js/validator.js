@@ -46,8 +46,71 @@ document.addEventListener('DOMContentLoaded', function() {
         processDeliveries(caixaData, validatedData);
         
         // Mostrar botões
-        addCaixaBtn.classList.remove('hidden');
-        closeCaixaBtn.classList.remove('hidden');
+        if (addCaixaBtn) addCaixaBtn.classList.remove('hidden'); // Ensure button is referenced after check
+        if (closeCaixaBtn) closeCaixaBtn.classList.remove('hidden'); // Ensure button is referenced after check
+    }
+
+    if (addCaixaBtn) {
+        addCaixaBtn.addEventListener('click', () => {
+            console.log('Botão Adicionar Nova Folha de Caixa clicado.');
+            
+            // Resetting the validation section for a new sheet/driver
+            if (driverSelect) {
+                driverSelect.value = ''; // Reset driver selection
+            }
+            if (driverSelection) {
+                 driverSelection.classList.remove('hidden'); // Show driver selection
+            }
+            if (driverDeliveries) {
+                driverDeliveries.classList.add('hidden'); // Hide deliveries table
+            }
+            if (deliveriesTable) {
+                deliveriesTable.innerHTML = ''; // Clear table
+            }
+            if (deliveryCountElement) {
+                deliveryCountElement.textContent = '0';
+            }
+            
+            // Reset internal arrays for the current validation session
+            validatedDeliveries = [];
+            pendingDeliveries = [];
+            currentDriverDeliveries = [];
+            
+            // Hide the action buttons again until a new file/driver is processed
+            // addCaixaBtn.classList.add('hidden'); // Or keep it visible if that's the flow
+            // closeCaixaBtn.classList.add('hidden'); // Or keep it visible
+
+            alert('Nova folha de caixa pronta para iniciar. Selecione um condutor e carregue o arquivo de caixa se necessário.');
+            // Note: The actual re-triggering of initCaixaValidation would typically happen 
+            // after a new 'caixa-file' is uploaded for the selected driver.
+            // This button just resets the current view.
+        });
+    }
+
+    if (closeCaixaBtn) {
+        closeCaixaBtn.addEventListener('click', () => {
+            console.log('Botão Encerrar Caixa clicado.');
+
+            if (validatedDeliveries.length === 0 && pendingDeliveries.length === 0) {
+                alert('Nenhuma entrega processada para encerrar o caixa.');
+                return;
+            }
+
+            if (window.exporter && typeof window.exporter.initExport === 'function') {
+                window.exporter.initExport(validatedDeliveries, pendingDeliveries);
+                
+                const exportTab = document.querySelector('.nav-tab[data-tab="export"]');
+                if (exportTab) {
+                    exportTab.click();
+                } else {
+                    console.error('Não foi possível encontrar a aba de Exportação.');
+                    alert('Erro ao tentar navegar para a aba de exportação.');
+                }
+            } else {
+                console.error('Função de exportação (window.exporter.initExport) não encontrada.');
+                alert('Erro: Funcionalidade de exportação não está disponível.');
+            }
+        });
     }
     
     // Função para preencher select de condutores
