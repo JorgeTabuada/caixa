@@ -6,25 +6,28 @@ function formatDateForDB(dateValue) {
     if (!dateValue) return null;
     
     try {
-        // Se já é uma data válida ISO, retorna como está
-        if (typeof dateValue === 'string' && dateValue.includes('T')) {
-            return dateValue;
+        let dateStr = String(dateValue).trim();
+        
+        // Se já é ISO, retorna como está
+        if (dateStr.includes('T') && dateStr.includes('-')) {
+            return dateStr;
         }
         
-        // Converter formatos pt-BR para ISO
-        let dateStr = String(dateValue);
-        
-        // Formato "18/05/2025, 12:18" -> "2025-05-18T12:18:00"
+        // Formato "18/05/2025, 12:18" → "2025-05-18T12:18:00"
         if (dateStr.includes('/') && dateStr.includes(',')) {
             const [datePart, timePart] = dateStr.split(', ');
             const [day, month, year] = datePart.split('/');
-            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${timePart}:00`;
+            const time = timePart.includes(':') ? timePart : '00:00';
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${time}:00`;
         }
         
-        // Formato "18/05/2025" -> "2025-05-18"
+        // Formato "18/05/2025" → "2025-05-18T00:00:00"
         if (dateStr.includes('/')) {
-            const [day, month, year] = dateStr.split('/');
-            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                const [day, month, year] = parts;
+                return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`;
+            }
         }
         
         return null;
