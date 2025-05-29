@@ -1,11 +1,12 @@
-// Comparador entre Odoo e Back Office
+// Comparador entre Odoo e Back Office - Versão corrigida
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos da interface de comparação
     const odooCountElement = document.getElementById('odoo-count');
     const backofficeCountElement = document.getElementById('backoffice-count');
     const inconsistencyCountElement = document.getElementById('inconsistency-count');
     const missingCountElement = document.getElementById('missing-count');
-    const comparisonTable = document.getElementById('comparison-table').querySelector('tbody');
+    const comparisonTable = document.getElementById('comparison-table');
+    const comparisonTableBody = comparisonTable ? comparisonTable.querySelector('tbody') : null;
     const validateComparisonBtn = document.getElementById('validate-comparison-btn');
     
     // Botões de filtro
@@ -21,11 +22,37 @@ document.addEventListener('DOMContentLoaded', function() {
         valid: []
     };
     
-    // Variável para armazenar dados de comparação
-    let comparisonData = [];
+    // Função para normalizar valores antes da comparação
+    function normalizeValue(value) {
+        if (value === null || value === undefined || value === 'N/A') {
+            return '';
+        }
+        
+        // Converter para string e remover formatação
+        let normalized = String(value).trim();
+        
+        // Remover símbolo de euro e espaços
+        normalized = normalized.replace(/€/g, '').trim();
+        
+        // Converter para número se possível
+        if (!isNaN(normalized) && normalized !== '') {
+            return Number(normalized);
+        }
+        
+        // Converter texto para minúsculas
+        return normalized.toLowerCase();
+    }
+    
+    // Função para normalizar matrícula
+    function normalizeLicensePlate(plate) {
+        if (!plate) return '';
+        return String(plate).replace(/[\s\-\.\,\/\\\(\)\[\]\{\}\+\*\?\^\$\|]/g, '').toLowerCase();
+    }
     
     // Função principal de comparação
     window.compareOdooBackOffice = function(odooData, backOfficeData) {
+        console.log('Iniciando comparação:', { odoo: odooData.length, backoffice: backOfficeData.length });
+        
         // Limpar resultados anteriores
         comparisonResults = {
             all: [],
@@ -35,42 +62,57 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         // Atualizar contadores
-        odooCountElement.textContent = odooData.length;
-        backofficeCountElement.textContent = backOfficeData.length;
+        if (odooCountElement) odooCountElement.textContent = odooData.length;
+        if (backofficeCountElement) backofficeCountElement.textContent = backOfficeData.length;
         
-        // Criar mapa de registros do Odoo por matrícula (insensível a maiúsculas/minúsculas)
+        // Criar mapa de registros do Odoo por matrícula
         const odooMap = new Map();
         odooData.forEach(record => {
-            if (record.licensePlate) {
-                odooMap.set(record.licensePlate.toString().toLowerCase(), record);
+            const plate = record.licensePlate || record['License Plate'] || record['Matrícula'];
+            if (plate) {
+                const normalizedPlate = normalizeLicensePlate(plate);
+                odooMap.set(normalizedPlate, {
+                    ...record,
+                    licensePlate: plate,
+                    bookingPrice: record.bookingPrice || record['Booking Price'] || record['Preço Booking'] || 0,
+                    parkBrand: record.parkBrand || record['Park Brand'] || record['Marca'] || 'N/A'
+                });
             }
         });
         
-        // Criar mapa de registros do Back Office por matrícula (insensível a maiúsculas/minúsculas)
+        // Criar mapa de registros do Back Office por matrícula
         const backOfficeMap = new Map();
         backOfficeData.forEach(record => {
-            if (record.licensePlate) {
-                backOfficeMap.set(record.licensePlate.toString().toLowerCase(), record);
+            const plate = record.licensePlate || record['License Plate'] || record['Matrícula'];
+            if (plate) {
+                const normalizedPlate = normalizeLicensePlate(plate);
+                backOfficeMap.set(normalizedPlate, {
+                    ...record,
+                    licensePlate: plate,
+                    alocation: record.alocation || record['Alocation'] || record['Alocação'] || 'N/A',
+                    bookingPrice: record.bookingPrice || record['Booking Price'] || record['Preço Booking'] || 0,
+                    parkBrand: record.parkBrand || record['Park Brand'] || record['Marca'] || 'N/A'
+                });
             }
         });
         
         // Verificar registros do Back Office
         backOfficeData.forEach(boRecord => {
-            if (!boRecord.licensePlate) return;
+            const plate = boRecord.licensePlate || boRecord['License Plate'] || boRecord['Matrícula'];
+            if (!plate) return;
             
-            const licensePlate = boRecord.licensePlate;
-            const licensePlateLower = licensePlate.toString().toLowerCase();
-            const odooRecord = odooMap.get(licensePlateLower);
+            const normalizedPlate = normalizeLicensePlate(plate);
+            const odooRecord = odooMap.get(normalizedPlate);
             
             if (!odooRecord) {
                 // Registro presente no Back Office mas ausente no Odoo
                 comparisonResults.missing.push({
                     source: 'backoffice',
-                    licensePlate: licensePlate,
-                    alocation: boRecord.alocation || 'N/A',
-                    bookingPriceBO: boRecord.bookingPrice || 0,
+                    licensePlate: plate,
+                    alocation: boRecord.alocation || boRecord['Alocation'] || boRecord['Alocação'] || 'N/A',
+                    bookingPriceBO: boRecord.bookingPrice || boRecord['Booking Price'] || boRecord['Preço Booking'] || 0,
                     bookingPriceOdoo: 'N/A',
-                    parkBrand: boRecord.parkBrand || 'N/A',
+                    parkBrand: boRecord.parkBrand || boRecord['Park Brand'] || boRecord['Marca'] || 'N/A',
                     status: 'missing_in_odoo',
                     boRecord: boRecord,
                     odooRecord: null,
@@ -80,8 +122,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Registro presente em ambos, verificar inconsistências
                 const inconsistencies = [];
                 
-                // Verificar apenas preço de booking (conforme solicitado)
-                if (boRecord.bookingPrice !== odooRecord.bookingPrice) {
+                // Verificar preço de booking
+                const boPriceNorm = normalizeValue(boRecord.bookingPrice || boRecord['Booking Price'] || boRecord['Preço Booking']);
+                const odooPriceNorm = normalizeValue(odooRecord.bookingPrice || odooRecord['Booking Price'] || odooRecord['Preço Booking']);
+                
+                if (boPriceNorm !== odooPriceNorm) {
                     inconsistencies.push('bookingPrice');
                 }
                 
@@ -89,12 +134,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Registro com inconsistências
                     comparisonResults.inconsistent.push({
                         source: 'both',
-                        licensePlate: licensePlate,
-                        alocation: boRecord.alocation || 'N/A',
-                        bookingPriceBO: boRecord.bookingPrice || 0,
-                        bookingPriceOdoo: odooRecord.bookingPrice || 0,
-                        parkBrand: boRecord.parkBrand || 'N/A',
-                        parkBrandOdoo: odooRecord.parkBrand || 'N/A',
+                        licensePlate: plate,
+                        alocation: boRecord.alocation || boRecord['Alocation'] || boRecord['Alocação'] || 'N/A',
+                        bookingPriceBO: boRecord.bookingPrice || boRecord['Booking Price'] || boRecord['Preço Booking'] || 0,
+                        bookingPriceOdoo: odooRecord.bookingPrice || odooRecord['Booking Price'] || odooRecord['Preço Booking'] || 0,
+                        parkBrand: boRecord.parkBrand || boRecord['Park Brand'] || boRecord['Marca'] || 'N/A',
+                        parkBrandOdoo: odooRecord.parkBrand || odooRecord['Park Brand'] || odooRecord['Marca'] || 'N/A',
                         status: 'inconsistent',
                         inconsistencies: inconsistencies,
                         boRecord: boRecord,
@@ -105,11 +150,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Registro sem inconsistências
                     comparisonResults.valid.push({
                         source: 'both',
-                        licensePlate: licensePlate,
-                        alocation: boRecord.alocation || 'N/A',
-                        bookingPriceBO: boRecord.bookingPrice || 0,
-                        bookingPriceOdoo: odooRecord.bookingPrice || 0,
-                        parkBrand: boRecord.parkBrand || 'N/A',
+                        licensePlate: plate,
+                        alocation: boRecord.alocation || boRecord['Alocation'] || boRecord['Alocação'] || 'N/A',
+                        bookingPriceBO: boRecord.bookingPrice || boRecord['Booking Price'] || boRecord['Preço Booking'] || 0,
+                        bookingPriceOdoo: odooRecord.bookingPrice || odooRecord['Booking Price'] || odooRecord['Preço Booking'] || 0,
+                        parkBrand: boRecord.parkBrand || boRecord['Park Brand'] || boRecord['Marca'] || 'N/A',
                         status: 'valid',
                         boRecord: boRecord,
                         odooRecord: odooRecord,
@@ -121,21 +166,21 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Verificar registros do Odoo ausentes no Back Office
         odooData.forEach(odooRecord => {
-            if (!odooRecord.licensePlate) return;
+            const plate = odooRecord.licensePlate || odooRecord['License Plate'] || odooRecord['Matrícula'];
+            if (!plate) return;
             
-            const licensePlate = odooRecord.licensePlate;
-            const licensePlateLower = licensePlate.toString().toLowerCase();
-            const boRecord = backOfficeMap.get(licensePlateLower);
+            const normalizedPlate = normalizeLicensePlate(plate);
+            const boRecord = backOfficeMap.get(normalizedPlate);
             
             if (!boRecord) {
                 // Registro presente no Odoo mas ausente no Back Office
                 comparisonResults.missing.push({
                     source: 'odoo',
-                    licensePlate: licensePlate,
+                    licensePlate: plate,
                     alocation: 'N/A',
                     bookingPriceBO: 'N/A',
-                    bookingPriceOdoo: odooRecord.bookingPrice || 0,
-                    parkBrand: odooRecord.parkBrand || 'N/A',
+                    bookingPriceOdoo: odooRecord.bookingPrice || odooRecord['Booking Price'] || odooRecord['Preço Booking'] || 0,
+                    parkBrand: odooRecord.parkBrand || odooRecord['Park Brand'] || odooRecord['Marca'] || 'N/A',
                     status: 'missing_in_backoffice',
                     boRecord: null,
                     odooRecord: odooRecord,
@@ -151,29 +196,41 @@ document.addEventListener('DOMContentLoaded', function() {
             ...comparisonResults.missing
         ];
         
-        // Atualizar dados de comparação
-        comparisonData = comparisonResults.all;
-        
         // Atualizar contadores
-        inconsistencyCountElement.textContent = comparisonResults.inconsistent.length;
-        missingCountElement.textContent = comparisonResults.missing.length;
+        if (inconsistencyCountElement) inconsistencyCountElement.textContent = comparisonResults.inconsistent.length;
+        if (missingCountElement) missingCountElement.textContent = comparisonResults.missing.length;
         
         // Renderizar tabela com todos os registros
         renderComparisonTable(comparisonResults.all);
         
-        // Habilitar botão de validação se não houver problemas ou se todos os problemas tiverem resolução
+        // Habilitar botão de validação
         updateValidateButton();
+        
+        // Salvar resultados no Supabase se disponível
+        saveResultsToSupabase();
+        
+        console.log('Comparação concluída:', {
+            total: comparisonResults.all.length,
+            valid: comparisonResults.valid.length,
+            inconsistent: comparisonResults.inconsistent.length,
+            missing: comparisonResults.missing.length
+        });
     };
     
     // Função para renderizar a tabela de comparação
     function renderComparisonTable(records) {
+        if (!comparisonTableBody) {
+            console.error('Tabela de comparação não encontrada');
+            return;
+        }
+        
         // Limpar tabela
-        comparisonTable.innerHTML = '';
+        comparisonTableBody.innerHTML = '';
         
         if (records.length === 0) {
             const row = document.createElement('tr');
             row.innerHTML = '<td colspan="7" class="text-center">Nenhum registro encontrado.</td>';
-            comparisonTable.appendChild(row);
+            comparisonTableBody.appendChild(row);
             return;
         }
         
@@ -194,21 +251,51 @@ document.addEventListener('DOMContentLoaded', function() {
             row.innerHTML = `
                 <td>${record.licensePlate}</td>
                 <td>${record.alocation}</td>
-                <td>${record.bookingPriceBO} €</td>
-                <td>${record.bookingPriceOdoo} €</td>
+                <td>${formatPrice(record.bookingPriceBO)}</td>
+                <td>${formatPrice(record.bookingPriceOdoo)}</td>
                 <td>${record.parkBrand}</td>
                 <td>${getStatusText(record.status)}</td>
                 <td>
-                    <button class="btn btn-secondary btn-sm view-details" data-license="${record.licensePlate}">Detalhes</button>
+                    <button class="btn btn-secondary btn-sm view-details" data-license="${record.licensePlate}" style="margin-right: 5px;">Detalhes</button>
                     ${record.status !== 'valid' ? `<button class="btn btn-primary btn-sm resolve-issue" data-license="${record.licensePlate}">Resolver</button>` : ''}
                 </td>
             `;
             
-            comparisonTable.appendChild(row);
+            comparisonTableBody.appendChild(row);
         });
         
         // Adicionar eventos aos botões
         addTableButtonEvents();
+    }
+    
+    // Função para formatar preços
+    function formatPrice(price) {
+        if (price === 'N/A' || price === null || price === undefined) {
+            return 'N/A';
+        }
+        
+        const numPrice = parseFloat(price);
+        if (isNaN(numPrice)) {
+            return 'N/A';
+        }
+        
+        return numPrice.toFixed(2) + ' €';
+    }
+    
+    // Função para obter texto de status
+    function getStatusText(status) {
+        switch (status) {
+            case 'valid':
+                return '<span class="status-success">Válido</span>';
+            case 'inconsistent':
+                return '<span class="status-error">Inconsistente</span>';
+            case 'missing_in_odoo':
+                return '<span class="status-warning">Ausente no Odoo</span>';
+            case 'missing_in_backoffice':
+                return '<span class="status-warning">Ausente no Back Office</span>';
+            default:
+                return status;
+        }
     }
     
     // Função para adicionar eventos aos botões da tabela
@@ -232,10 +319,21 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Função para mostrar modal de detalhes
     function showDetailsModal(licensePlate) {
-        const record = comparisonResults.all.find(r => r.licensePlate.toString().toLowerCase() === licensePlate.toString().toLowerCase());
-        if (!record) return;
+        const record = comparisonResults.all.find(r => 
+            normalizeLicensePlate(r.licensePlate) === normalizeLicensePlate(licensePlate)
+        );
+        
+        if (!record) {
+            console.error('Registro não encontrado:', licensePlate);
+            return;
+        }
         
         const modalBody = document.getElementById('details-modal-body');
+        if (!modalBody) {
+            console.error('Modal de detalhes não encontrado');
+            return;
+        }
+        
         modalBody.innerHTML = '';
         
         // Criar conteúdo do modal
@@ -244,21 +342,20 @@ document.addEventListener('DOMContentLoaded', function() {
         // Informações gerais
         content.innerHTML = `
             <h4>Matrícula: ${record.licensePlate}</h4>
-            <p>Status: ${getStatusText(record.status)}</p>
-            ${record.resolution ? `<p>Resolução: ${record.resolution}</p>` : ''}
+            <p><strong>Status:</strong> ${getStatusText(record.status)}</p>
+            ${record.resolution ? `<p><strong>Resolução:</strong> ${record.resolution}</p>` : ''}
         `;
         
         // Detalhes do Back Office
         if (record.boRecord) {
             const boDetails = document.createElement('div');
             boDetails.innerHTML = `
-                <h4 class="mt-20">Detalhes do Back Office</h4>
-                <table class="table">
-                    <tr><th>Alocação</th><td>${record.boRecord.alocation || 'N/A'}</td></tr>
-                    <tr><th>Preço Booking</th><td>${record.boRecord.bookingPrice || 'N/A'} €</td></tr>
-                    <tr><th>Marca</th><td>${record.boRecord.parkBrand || 'N/A'}</td></tr>
-                    <tr><th>Campanha</th><td>${record.boRecord.campaign || 'N/A'}</td></tr>
-                    <tr><th>Check-In</th><td>${record.boRecord.checkIn || 'N/A'}</td></tr>
+                <h4 style="margin-top: 20px;">Detalhes do Back Office</h4>
+                <table class="table" style="margin-top: 10px;">
+                    <tr><th>Alocação</th><td>${record.boRecord.alocation || record.boRecord['Alocação'] || 'N/A'}</td></tr>
+                    <tr><th>Preço Booking</th><td>${formatPrice(record.boRecord.bookingPrice || record.boRecord['Preço Booking'])}</td></tr>
+                    <tr><th>Marca</th><td>${record.boRecord.parkBrand || record.boRecord['Marca'] || 'N/A'}</td></tr>
+                    <tr><th>Campanha</th><td>${record.boRecord.campaign || record.boRecord['Campanha'] || 'N/A'}</td></tr>
                 </table>
             `;
             content.appendChild(boDetails);
@@ -268,197 +365,214 @@ document.addEventListener('DOMContentLoaded', function() {
         if (record.odooRecord) {
             const odooDetails = document.createElement('div');
             odooDetails.innerHTML = `
-                <h4 class="mt-20">Detalhes do Odoo</h4>
-                <table class="table">
-                    <tr><th>ID</th><td>${record.odooRecord.ID || 'N/A'}</td></tr>
-                    <tr><th>Preço Booking</th><td>${record.odooRecord.bookingPrice || 'N/A'} €</td></tr>
-                    <tr><th>Preço na Entrega</th><td>${record.odooRecord.priceOnDelivery || 'N/A'} €</td></tr>
-                    <tr><th>Marca</th><td>${record.odooRecord.parkBrand || 'N/A'}</td></tr>
-                    <tr><th>Check-In</th><td>${record.odooRecord.checkIn || 'N/A'}</td></tr>
-                    <tr><th>Check-Out</th><td>${record.odooRecord.checkOut || 'N/A'}</td></tr>
+                <h4 style="margin-top: 20px;">Detalhes do Odoo</h4>
+                <table class="table" style="margin-top: 10px;">
+                    <tr><th>Preço Booking</th><td>${formatPrice(record.odooRecord.bookingPrice || record.odooRecord['Preço Booking'])}</td></tr>
+                    <tr><th>Marca</th><td>${record.odooRecord.parkBrand || record.odooRecord['Marca'] || 'N/A'}</td></tr>
+                    <tr><th>Campanha</th><td>${record.odooRecord.campaign || record.odooRecord['Campanha'] || 'N/A'}</td></tr>
                 </table>
             `;
             content.appendChild(odooDetails);
         }
         
-        // Inconsistências
-        if (record.inconsistencies && record.inconsistencies.length > 0) {
-            const inconsistenciesDiv = document.createElement('div');
-            inconsistenciesDiv.innerHTML = `
-                <h4 class="mt-20">Inconsistências</h4>
-                <ul>
-                    ${record.inconsistencies.map(inc => {
-                        if (inc === 'bookingPrice') {
-                            return `<li>Preço de Booking: ${record.bookingPriceBO} € (BO) vs ${record.bookingPriceOdoo} € (Odoo)</li>`;
-                        } else if (inc === 'parkBrand') {
-                            return `<li>Marca: ${record.parkBrand} (BO) vs ${record.parkBrandOdoo} (Odoo)</li>`;
-                        } else {
-                            return `<li>${inc}</li>`;
-                        }
-                    }).join('')}
-                </ul>
-            `;
-            content.appendChild(inconsistenciesDiv);
-        }
-        
+        // Adicionar conteúdo ao modal
         modalBody.appendChild(content);
         
         // Mostrar modal
         const modalOverlay = document.getElementById('details-modal-overlay');
         if (modalOverlay) {
             modalOverlay.style.display = 'flex';
-        } else {
-            console.warn('Elemento details-modal-overlay não encontrado');
+            
+            // Configurar botão de fechar
+            const closeBtn = modalOverlay.querySelector('.close-modal');
+            if (closeBtn) {
+                closeBtn.onclick = function() {
+                    modalOverlay.style.display = 'none';
+                };
+            }
+            
+            // Fechar ao clicar fora do modal
+            modalOverlay.onclick = function(e) {
+                if (e.target === modalOverlay) {
+                    modalOverlay.style.display = 'none';
+                }
+            };
+            
+            // Fechar com ESC
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && modalOverlay.style.display === 'flex') {
+                    modalOverlay.style.display = 'none';
+                }
+            });
         }
     }
     
     // Função para mostrar modal de resolução
     function showResolveModal(licensePlate) {
-        const record = comparisonData.find(r => r.licensePlate === licensePlate);
-        if (!record) return;
+        const record = comparisonResults.all.find(r => 
+            normalizeLicensePlate(r.licensePlate) === normalizeLicensePlate(licensePlate)
+        );
         
-        // Obter ou criar elementos do modal
-        const modalOverlay = document.getElementById('edit-modal-overlay');
-        const modalBody = document.getElementById('edit-modal-body');
-        
-        if (!modalBody) {
-            console.warn('Elemento edit-modal-body não encontrado');
+        if (!record) {
+            console.error('Registro não encontrado:', licensePlate);
             return;
         }
         
-        // Limpar conteúdo anterior
+        const modalBody = document.getElementById('edit-modal-body');
+        if (!modalBody) {
+            console.error('Modal de edição não encontrado');
+            return;
+        }
+        
         modalBody.innerHTML = '';
         
-        // Criar formulário de edição
+        // Criar formulário de resolução
         const form = document.createElement('form');
-        form.id = 'edit-record-form';
+        form.id = 'resolve-form';
         
-        // Adicionar campos
+        // Título e informações gerais
         form.innerHTML = `
-            <h4>Resolver Inconsistência</h4>
-            <p>Matrícula: ${record.licensePlate}</p>
-            <p>Alocação: ${record.alocation}</p>
-            
+            <h4>Resolver Problema - Matrícula: ${record.licensePlate}</h4>
+            <p><strong>Status:</strong> ${getStatusText(record.status)}</p>
+        `;
+        
+        // Campos específicos para inconsistências
+        if (record.status === 'inconsistent') {
+            form.innerHTML += `
+                <div class="form-group">
+                    <label><strong>Escolha a fonte de dados correta:</strong></label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" name="data-source" id="backoffice-data" value="backoffice" checked>
+                            <label for="backoffice-data">
+                                Usar dados do Back Office (${formatPrice(record.bookingPriceBO)})
+                            </label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" name="data-source" id="odoo-data" value="odoo">
+                            <label for="odoo-data">
+                                Usar dados do Odoo (${formatPrice(record.bookingPriceOdoo)})
+                            </label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" name="data-source" id="manual-correction" value="manual">
+                            <label for="manual-correction">
+                                Correção manual
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="manual-fields" class="form-group hidden">
+                    <label for="manual-booking-price">Preço de Booking:</label>
+                    <input type="number" id="manual-booking-price" class="form-control" step="0.01" min="0">
+                </div>
+            `;
+        }
+        
+        // Campos específicos para registros ausentes
+        if (record.status.includes('missing')) {
+            form.innerHTML += `
+                <div class="form-group">
+                    <label><strong>Ação para registro ausente:</strong></label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" name="missing-action" id="ignore-missing" value="ignore" checked>
+                            <label for="ignore-missing">
+                                Ignorar inconsistência
+                            </label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" name="missing-action" id="investigate-missing" value="investigate">
+                            <label for="investigate-missing">
+                                Marcar para investigação
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Campo de notas
+        form.innerHTML += `
             <div class="form-group">
-                <label class="form-label">Preço Booking (BO):</label>
-                <input type="number" class="form-control" id="edit-bo-price" value="${record.bookingPriceBO || 0}">
+                <label for="resolution-notes">Notas de resolução:</label>
+                <textarea id="resolution-notes" class="form-control" rows="3"></textarea>
             </div>
             
-            <div class="form-group">
-                <label class="form-label">Preço Booking (Odoo):</label>
-                <input type="number" class="form-control" id="edit-odoo-price" value="${record.bookingPriceOdoo || 0}">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Observações:</label>
-                <textarea class="form-control" id="edit-notes"></textarea>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Aplicar Resolução</button>
+                <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
             </div>
         `;
         
+        // Adicionar formulário ao modal
         modalBody.appendChild(form);
         
-        // Criar ou configurar botão de salvar
-        const modalFooter = document.querySelector('#edit-modal-overlay .modal-footer') || document.createElement('div');
-        
-        if (!modalFooter.classList.contains('modal-footer')) {
-            modalFooter.className = 'modal-footer';
-            if (modalBody.parentNode && !modalBody.parentNode.querySelector('.modal-footer')) {
-                modalBody.parentNode.appendChild(modalFooter);
-            }
-        }
-        
-        // Limpar e adicionar botão de salvar
-        modalFooter.innerHTML = '';
-        const saveButton = document.createElement('button');
-        saveButton.id = 'save-edit-btn';
-        saveButton.className = 'btn btn-primary';
-        saveButton.textContent = 'Salvar';
-        saveButton.onclick = function() {
-            resolveInconsistency(record);
-        };
-        modalFooter.appendChild(saveButton);
+        // Configurar eventos do formulário
+        setupResolveFormEvents(form, record);
         
         // Mostrar modal
-        if (modalOverlay) {
-            modalOverlay.style.display = 'flex';
-        } else {
-            console.warn('Elemento edit-modal-overlay não encontrado');
-        }
-    }
-    
-    // Função para resolver inconsistência
-    function resolveInconsistency(record) {
-        // Obter valores do formulário
-        const boPriceElement = document.getElementById('edit-bo-price');
-        const odooPriceElement = document.getElementById('edit-odoo-price');
-        const notesElement = document.getElementById('edit-notes');
-        
-        if (!boPriceElement || !odooPriceElement) {
-            console.warn('Elementos de formulário não encontrados');
-            return;
-        }
-        
-        const boPrice = parseFloat(boPriceElement.value);
-        const odooPrice = parseFloat(odooPriceElement.value);
-        const notes = notesElement ? notesElement.value : '';
-        
-        // Atualizar registro
-        record.bookingPriceBO = boPrice;
-        record.bookingPriceOdoo = odooPrice;
-        record.resolution = 'manual';
-        record.resolutionNotes = notes;
-        
-        // Verificar se ainda há inconsistências
-        if (boPrice === odooPrice) {
-            record.status = 'valid';
-            record.inconsistencies = [];
-            
-            // Mover para lista de válidos
-            const index = comparisonResults.inconsistent.findIndex(r => r.licensePlate === record.licensePlate);
-            if (index !== -1) {
-                comparisonResults.inconsistent.splice(index, 1);
-                comparisonResults.valid.push(record);
-            }
-        }
-        
-        // Atualizar tabela
-        renderComparisonTable(comparisonResults.all);
-        
-        // Atualizar contadores
-        inconsistencyCountElement.textContent = comparisonResults.inconsistent.length;
-        
-        // Atualizar botão de validação
-        updateValidateButton();
-        
-        // Fechar modal
         const modalOverlay = document.getElementById('edit-modal-overlay');
         if (modalOverlay) {
-            modalOverlay.style.display = 'none';
+            modalOverlay.style.display = 'flex';
+            
+            // Configurar botão de fechar
+            const closeBtn = modalOverlay.querySelector('.close-modal');
+            if (closeBtn) {
+                closeBtn.onclick = function() {
+                    modalOverlay.style.display = 'none';
+                };
+            }
+            
+            // Fechar ao clicar fora do modal
+            modalOverlay.onclick = function(e) {
+                if (e.target === modalOverlay) {
+                    modalOverlay.style.display = 'none';
+                }
+            };
+            
+            // Fechar com ESC
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && modalOverlay.style.display === 'flex') {
+                    modalOverlay.style.display = 'none';
+                }
+            });
         }
     }
     
-    // Função para atualizar botão de validação
+    // Função para atualizar o botão de validação
     function updateValidateButton() {
-        const hasUnresolvedIssues = comparisonResults.inconsistent.some(r => !r.resolution) || 
-                                   comparisonResults.missing.some(r => !r.resolution);
-        
         if (validateComparisonBtn) {
-            validateComparisonBtn.disabled = hasUnresolvedIssues;
+            const unresolved = comparisonResults.inconsistent.filter(r => !r.resolution).length + 
+                              comparisonResults.missing.filter(r => !r.resolution).length;
+            
+            validateComparisonBtn.disabled = unresolved > 0;
+            
+            if (unresolved > 0) {
+                validateComparisonBtn.textContent = `Validar (${unresolved} problemas não resolvidos)`;
+            } else {
+                validateComparisonBtn.textContent = 'Validar';
+            }
         }
     }
     
-    // Função para obter texto do status
-    function getStatusText(status) {
-        switch (status) {
-            case 'valid': return 'Válido';
-            case 'inconsistent': return 'Inconsistente';
-            case 'missing_in_odoo': return 'Ausente no Odoo';
-            case 'missing_in_backoffice': return 'Ausente no Back Office';
-            default: return status;
+    // Função para salvar resultados no Supabase
+    async function saveResultsToSupabase() {
+        if (window.supabaseUtils && window.fileProcessor) {
+            try {
+                const batchId = window.fileProcessor.getCurrentBatchId();
+                if (batchId) {
+                    const result = await window.supabaseUtils.saveComparisonResults(comparisonResults.all, batchId);
+                    console.log(`${result.count} resultados de comparação salvos no Supabase`);
+                }
+            } catch (error) {
+                console.error('Erro ao salvar resultados no Supabase:', error);
+            }
         }
     }
     
-    // Eventos para botões de filtro
+    // Configurar eventos de filtro
     if (showAllBtn) {
         showAllBtn.addEventListener('click', function() {
             renderComparisonTable(comparisonResults.all);
@@ -477,69 +591,262 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Evento para botão de validação
+    // Função para configurar eventos do formulário de resolução
+    function setupResolveFormEvents(form, record) {
+        // Evento para mostrar/ocultar campos manuais
+        const manualRadio = form.querySelector('#manual-correction');
+        const manualFields = form.querySelector('#manual-fields');
+        
+        if (manualRadio && manualFields) {
+            form.addEventListener('change', function(e) {
+                if (e.target.name === 'data-source') {
+                    if (e.target.value === 'manual') {
+                        manualFields.classList.remove('hidden');
+                    } else {
+                        manualFields.classList.add('hidden');
+                    }
+                }
+            });
+        }
+        
+        // Evento de submissão do formulário
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleResolutionSubmit(form, record);
+        });
+    }
+    
+    // Função para processar submissão de resolução
+    function handleResolutionSubmit(form, record) {
+        const formData = new FormData(form);
+        
+        if (record.status === 'inconsistent') {
+            const dataSource = formData.get('data-source');
+            const notes = formData.get('resolution-notes') || form.querySelector('#resolution-notes')?.value || '';
+            
+            let resolution = {};
+            
+            switch (dataSource) {
+                case 'backoffice':
+                    resolution = {
+                        type: 'use_backoffice',
+                        bookingPrice: record.bookingPriceBO,
+                        source: 'Back Office',
+                        notes: notes
+                    };
+                    break;
+                case 'odoo':
+                    resolution = {
+                        type: 'use_odoo',
+                        bookingPrice: record.bookingPriceOdoo,
+                        source: 'Odoo',
+                        notes: notes
+                    };
+                    break;
+                case 'manual':
+                    const manualPrice = form.querySelector('#manual-booking-price')?.value;
+                    if (!manualPrice || isNaN(manualPrice)) {
+                        alert('Por favor, insira um preço válido para a correção manual.');
+                        return;
+                    }
+                    resolution = {
+                        type: 'manual_correction',
+                        bookingPrice: parseFloat(manualPrice),
+                        source: 'Correção Manual',
+                        notes: notes
+                    };
+                    break;
+            }
+            
+            // Aplicar resolução
+            applyResolution(record, resolution);
+            
+        } else if (record.status.includes('missing')) {
+            const action = formData.get('missing-action') || form.querySelector('input[name="missing-action"]:checked')?.value;
+            const notes = formData.get('resolution-notes') || form.querySelector('#resolution-notes')?.value || '';
+            
+            let resolution = {};
+            
+            switch (action) {
+                case 'ignore':
+                    resolution = {
+                        type: 'ignore_missing',
+                        action: 'Ignorado',
+                        notes: notes || 'Inconsistência ignorada pelo utilizador'
+                    };
+                    break;
+                case 'investigate':
+                    resolution = {
+                        type: 'investigate',
+                        action: 'Investigação',
+                        notes: notes || 'Marcado para investigação'
+                    };
+                    break;
+            }
+            
+            // Aplicar resolução
+            applyResolution(record, resolution);
+        }
+        
+        // Fechar modal
+        const modal = document.getElementById('edit-modal-overlay');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        
+        // Mostrar mensagem de sucesso
+        if (window.appUtils) {
+            window.appUtils.showSuccess('Resolução aplicada com sucesso!');
+        }
+    }
+    
+    // Função para aplicar resolução a um registro
+    function applyResolution(record, resolution) {
+        // Encontrar o registro nos resultados e aplicar resolução
+        const allIndex = comparisonResults.all.findIndex(r => 
+            normalizeLicensePlate(r.licensePlate) === normalizeLicensePlate(record.licensePlate)
+        );
+        
+        if (allIndex !== -1) {
+            comparisonResults.all[allIndex].resolution = resolution;
+            comparisonResults.all[allIndex].resolutionNotes = resolution.notes;
+            
+            // Se era inconsistente ou missing, mover para válidos se apropriado
+            if (resolution.type === 'use_backoffice' || resolution.type === 'use_odoo' || resolution.type === 'manual_correction') {
+                comparisonResults.all[allIndex].status = 'resolved';
+                
+                // Remover das listas de problemas
+                comparisonResults.inconsistent = comparisonResults.inconsistent.filter(r => 
+                    normalizeLicensePlate(r.licensePlate) !== normalizeLicensePlate(record.licensePlate)
+                );
+                comparisonResults.missing = comparisonResults.missing.filter(r => 
+                    normalizeLicensePlate(r.licensePlate) !== normalizeLicensePlate(record.licensePlate)
+                );
+                
+                // Adicionar aos válidos se não existir
+                const validIndex = comparisonResults.valid.findIndex(r => 
+                    normalizeLicensePlate(r.licensePlate) === normalizeLicensePlate(record.licensePlate)
+                );
+                if (validIndex === -1) {
+                    comparisonResults.valid.push({...comparisonResults.all[allIndex]});
+                }
+            }
+        }
+        
+        // Atualizar contadores
+        if (inconsistencyCountElement) {
+            inconsistencyCountElement.textContent = comparisonResults.inconsistent.length;
+        }
+        if (missingCountElement) {
+            missingCountElement.textContent = comparisonResults.missing.length;
+        }
+        
+        // Re-renderizar tabela
+        renderComparisonTable(comparisonResults.all);
+        
+        // Atualizar botão de validação
+        updateValidateButton();
+        
+        console.log('Resolução aplicada:', {
+            licensePlate: record.licensePlate,
+            resolution: resolution
+        });
+    }
+    
+    // Função para exportar dados resolvidos
+    window.getResolvedComparisonData = function() {
+        return {
+            all: comparisonResults.all,
+            resolved: comparisonResults.all.filter(r => r.resolution),
+            unresolved: comparisonResults.all.filter(r => !r.resolution),
+            summary: {
+                total: comparisonResults.all.length,
+                valid: comparisonResults.valid.length,
+                inconsistent: comparisonResults.inconsistent.length,
+                missing: comparisonResults.missing.length,
+                resolved: comparisonResults.all.filter(r => r.resolution).length
+            }
+        };
+    };
+    
+    // Função para validar se todos os problemas foram resolvidos
+    window.validateComparison = function() {
+        const unresolved = comparisonResults.inconsistent.filter(r => !r.resolution).length + 
+                          comparisonResults.missing.filter(r => !r.resolution).length;
+        
+        if (unresolved > 0) {
+            if (window.appUtils) {
+                window.appUtils.showError(`Ainda existem ${unresolved} problemas não resolvidos. Por favor, resolva-os antes de prosseguir.`);
+            }
+            return false;
+        }
+        
+        if (window.appUtils) {
+            window.appUtils.showSuccess('Todos os problemas foram resolvidos! Pode prosseguir para a validação de caixa.');
+        }
+        
+        return true;
+    };
+    
+    // Configurar evento do botão de validação
     if (validateComparisonBtn) {
         validateComparisonBtn.addEventListener('click', function() {
-            // Verificar se há inconsistências não resolvidas
-            const hasUnresolvedIssues = comparisonResults.inconsistent.some(r => !r.resolution) || 
-                                       comparisonResults.missing.some(r => !r.resolution);
-            
-            if (hasUnresolvedIssues) {
-                alert('Existem inconsistências não resolvidas. Por favor, resolva todas as inconsistências antes de prosseguir.');
-                return;
-            }
-            
-            // Avançar para a próxima etapa
-            const compareSection = document.getElementById('compare-section');
-            const validateSection = document.getElementById('validate-section');
-            
-            if (compareSection) {
-                compareSection.classList.add('hidden');
-            }
-            
-            if (validateSection) {
-                validateSection.classList.remove('hidden');
-            }
-            
-            // Iniciar validação de caixa automaticamente se houver dados
-            if (window.fileProcessor && window.fileProcessor.getCaixaData()) {
-                console.log('Iniciando validação de caixa automaticamente');
-                window.validateCaixa(window.fileProcessor.getCaixaData());
+            if (window.validateComparison()) {
+                // Mudar para aba de validação
+                const validateTab = document.querySelector('.nav-tab[data-tab="validate"]');
+                if (validateTab) {
+                    validateTab.click();
+                }
             }
         });
     }
     
-    // Eventos para fechar modais
-    document.querySelectorAll('.modal-close, .modal-overlay').forEach(element => {
-        element.addEventListener('click', function(e) {
-            // Fechar apenas se clicou diretamente no overlay ou no botão de fechar
-            if (e.target === this) {
-                const modalOverlay = this.classList.contains('modal-overlay') ? 
-                    this : this.closest('.modal-overlay');
-                
-                if (modalOverlay) {
-                    modalOverlay.style.display = 'none';
-                }
-            }
-        });
-    });
-    
-    // Fechar modais com tecla ESC
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            document.querySelectorAll('.modal-overlay').forEach(modal => {
-                modal.style.display = 'none';
-            });
-        }
-    });
-    
-    // Exportar funções para uso global
-    window.comparatorUtils = {
-        getComparisonResults: function() {
-            return comparisonResults;
-        },
-        getValidatedRecords: function() {
-            return comparisonResults.all.filter(r => r.status === 'valid' || r.resolution);
-        }
+    // Função para obter estatísticas da comparação
+    window.getComparisonStats = function() {
+        return {
+            total: comparisonResults.all.length,
+            valid: comparisonResults.valid.length,
+            inconsistent: comparisonResults.inconsistent.length,
+            missing: comparisonResults.missing.length,
+            resolved: comparisonResults.all.filter(r => r.resolution).length,
+            unresolvedInconsistent: comparisonResults.inconsistent.filter(r => !r.resolution).length,
+            unresolvedMissing: comparisonResults.missing.filter(r => !r.resolution).length
+        };
     };
+    
+    // Função para resetar comparação
+    window.resetComparison = function() {
+        comparisonResults = {
+            all: [],
+            inconsistent: [],
+            missing: [],
+            valid: []
+        };
+        
+        // Limpar interface
+        if (odooCountElement) odooCountElement.textContent = '0';
+        if (backofficeCountElement) backofficeCountElement.textContent = '0';
+        if (inconsistencyCountElement) inconsistencyCountElement.textContent = '0';
+        if (missingCountElement) missingCountElement.textContent = '0';
+        
+        if (comparisonTableBody) {
+            comparisonTableBody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum dado disponível. Importe os arquivos primeiro.</td></tr>';
+        }
+        
+        if (validateComparisonBtn) {
+            validateComparisonBtn.disabled = true;
+        }
+        
+        console.log('Comparação resetada');
+    };
+    
+    // Função utilitária para debugging
+    window.debugComparison = function() {
+        console.log('Estado atual da comparação:', {
+            results: comparisonResults,
+            stats: window.getComparisonStats()
+        });
+    };
+    
+    console.log('Comparator.js carregado com sucesso');
 });

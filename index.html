@@ -5,41 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Caixa Multipark</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/additional-fixes.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Supabase Utils -->
-    <script src="js/supabase.js"></script>
-    <script>
-        // Verificar autenticação
-        document.addEventListener('DOMContentLoaded', function() {
-            if (window.supabaseUtils) {
-                window.supabaseUtils.checkSession().then(session => {
-                    if (!session) {
-                        // Não está autenticado, redirecionar para a página de login
-                        window.location.href = 'login.html';
-                    } else {
-                        console.log('Usuário autenticado:', session.user.email);
-                        // Adicionar informações do usuário na interface
-                        const userInfoElement = document.createElement('span');
-                        userInfoElement.id = 'user-info';
-                        userInfoElement.innerHTML = `<i class="fas fa-user"></i> ${session.user.email} | <a href="#" id="logout-link">Sair</a>`;
-                        document.querySelector('.session-info').appendChild(userInfoElement);
-                        
-                        // Adicionar evento de logout
-                        document.getElementById('logout-link').addEventListener('click', function(e) {
-                            e.preventDefault();
-                            window.supabaseUtils.signOut().then(() => {
-                                window.location.href = 'login.html';
-                            });
-                        });
-                    }
-                });
-            }
-        });
-    </script>
 </head>
 <body>
     <!-- Cabeçalho -->
@@ -78,7 +48,7 @@
                     <div class="file-upload" id="odoo-upload">
                         <i class="fas fa-file-excel file-upload-icon"></i>
                         <p class="file-upload-text">Arraste e solte o arquivo Odoo aqui ou clique para selecionar</p>
-                        <input type="file" id="odoo-file" class="hidden" accept=".xlsx, .xls">
+                        <input type="file" id="odoo-file" class="hidden" accept=".xlsx, .xls" aria-label="Carregar arquivo Odoo">
                         <button class="btn btn-primary">Selecionar Arquivo</button>
                     </div>
                     <div id="odoo-file-info" class="hidden">
@@ -93,7 +63,7 @@
                     <div class="file-upload" id="backoffice-upload">
                         <i class="fas fa-file-excel file-upload-icon"></i>
                         <p class="file-upload-text">Arraste e solte o arquivo Back Office aqui ou clique para selecionar</p>
-                        <input type="file" id="backoffice-file" class="hidden" accept=".xlsx, .xls">
+                        <input type="file" id="backoffice-file" class="hidden" accept=".xlsx, .xls" aria-label="Carregar arquivo Back Office">
                         <button class="btn btn-primary">Selecionar Arquivo</button>
                     </div>
                     <div id="backoffice-file-info" class="hidden">
@@ -151,7 +121,6 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Dados serão inseridos via JavaScript -->
                                 <tr>
                                     <td colspan="7" class="text-center">Nenhum dado disponível. Importe os arquivos primeiro.</td>
                                 </tr>
@@ -176,7 +145,7 @@
                     <div class="file-upload" id="caixa-upload">
                         <i class="fas fa-file-excel file-upload-icon"></i>
                         <p class="file-upload-text">Arraste e solte o arquivo de Caixa aqui ou clique para selecionar</p>
-                        <input type="file" id="caixa-file" class="hidden" accept=".xlsx, .xls">
+                        <input type="file" id="caixa-file" class="hidden" accept=".xlsx, .xls" aria-label="Carregar arquivo de Caixa">
                         <button class="btn btn-primary">Selecionar Arquivo</button>
                     </div>
                     <div id="caixa-file-info" class="hidden">
@@ -193,7 +162,6 @@
                             <label for="driver-select" class="form-label">Condutor:</label>
                             <select id="driver-select" class="form-control">
                                 <option value="">Selecione um condutor</option>
-                                <!-- Opções serão inseridas via JavaScript -->
                             </select>
                         </div>
                     </div>
@@ -220,7 +188,6 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Dados serão inseridos via JavaScript -->
                             </tbody>
                         </table>
                     </div>
@@ -236,19 +203,18 @@
             <section id="dashboard-section" class="content-section">
                 <h2 class="card-title mb-20">Dashboard e Estatísticas</h2>
                 
-                <!-- Novo card para estatísticas de entregas efetuadas vs previstas -->
                 <div class="card mb-20">
                     <div class="card-header">
-                        <h3 class="card-title">Entregas Efetuadas vs Previstas</h3>
+                        <h3 class="card-title">Resumo</h3>
                     </div>
                     <div class="card-body">
                         <div class="flex flex-between">
                             <div>
-                                <p>Entregas Efetuadas: <strong id="entregas-efetuadas">0</strong></p>
-                                <p>Entregas Previstas: <strong id="entregas-previstas">0</strong></p>
+                                <p>Total de registros no Sales Orders: <strong id="total-sales">0</strong></p>
+                                <p>Total de registros no Deliveries: <strong id="total-deliveries">0</strong></p>
                             </div>
                             <div>
-                                <p>Percentual de Conclusão: <strong id="percentual-entregas" class="status-warning">0%</strong></p>
+                                <p>Total de inconsistências: <strong id="total-inconsistencies" class="status-error">0</strong></p>
                             </div>
                         </div>
                     </div>
@@ -257,89 +223,25 @@
                 <div class="flex flex-between mb-20">
                     <div class="card" style="width: 32%;">
                         <div class="card-header">
-                            <h3 class="card-title">Resumo da Caixa</h3>
+                            <h3 class="card-title">Pagamentos</h3>
                         </div>
                         <div class="card-body">
-                            <p>Total da Caixa: <strong id="total-caixa">0,00 €</strong></p>
-                            <p>Total em Numerário: <strong id="total-numerario">0,00 €</strong></p>
-                            <p>Total em Multibanco: <strong id="total-multibanco">0,00 €</strong></p>
-                            <p>Total No Pay: <strong id="total-nopay">0,00 €</strong></p>
+                            <p>Total em Cash: <strong id="total-cash">0,00 €</strong></p>
+                            <p>Total em Card: <strong id="total-card">0,00 €</strong></p>
+                            <p>Total em Online: <strong id="total-online">0,00 €</strong></p>
+                            <p>Total em No Pay: <strong id="total-no-pay">0,00 €</strong></p>
                         </div>
                     </div>
                     
-                    <div class="card" style="width: 32%;">
+                    <div class="card" style="width: 66%;">
                         <div class="card-header">
-                            <h3 class="card-title">Entregas por Método</h3>
+                            <h3 class="card-title">Breakdown por Parque</h3>
                         </div>
                         <div class="card-body">
-                            <p>Entregas em Numerário: <strong id="count-numerario">0</strong></p>
-                            <p>Entregas em Multibanco: <strong id="count-multibanco">0</strong></p>
-                            <p>Entregas No Pay: <strong id="count-nopay">0</strong></p>
-                            <p>Total de Entregas: <strong id="count-total">0</strong></p>
+                            <div id="park-breakdown">
+                                <p class="text-center">Nenhum dado disponível.</p>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="card" style="width: 32%;">
-                        <div class="card-header">
-                            <h3 class="card-title">Comparativo</h3>
-                        </div>
-                        <div class="card-body">
-                            <p>Caixa Prevista (BO): <strong id="previsto-bo">0,00 €</strong></p>
-                            <p>Caixa Prevista (Odoo): <strong id="previsto-odoo">0,00 €</strong></p>
-                            <p>Caixa Efetiva: <strong id="efetiva-caixa">0,00 €</strong></p>
-                            <p>Diferença: <strong id="diferenca-caixa">0,00 €</strong></p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Novo card para estatísticas por condutor -->
-                <div class="card mb-20">
-                    <div class="card-header">
-                        <h3 class="card-title">Estatísticas por Condutor</h3>
-                    </div>
-                    <div class="card-body">
-                        <div id="condutor-stats-container">
-                            <!-- Estatísticas por condutor serão inseridas via JavaScript -->
-                            <p class="text-center">Nenhum dado de condutor disponível.</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="card mb-20">
-                    <div class="card-header">
-                        <h3 class="card-title">Gráficos</h3>
-                    </div>
-                    <div class="card-body flex flex-between">
-                        <div style="width: 48%;">
-                            <canvas id="chart-brands"></canvas>
-                        </div>
-                        <div style="width: 48%;">
-                            <canvas id="chart-payments"></canvas>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Todas as Entregas</h3>
-                    </div>
-                    <div class="table-container">
-                        <table class="table" id="all-deliveries-table">
-                            <thead>
-                                <tr>
-                                    <th>Alocação</th>
-                                    <th>Matrícula</th>
-                                    <th>Data Checkout</th>
-                                    <th>Marca</th>
-                                    <th>Método Pagamento</th>
-                                    <th>Valor</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Dados serão inseridos via JavaScript -->
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             </section>
@@ -350,89 +252,102 @@
                 
                 <div class="card mb-20">
                     <div class="card-header">
-                        <h3 class="card-title">Exportar para Excel</h3>
+                        <h3 class="card-title">Resumo da Exportação</h3>
                     </div>
                     <div class="card-body">
-                        <p>Exporte os dados processados para um arquivo Excel.</p>
-                        <div class="flex flex-center mt-20">
-                            <button id="export-excel-btn" class="btn btn-primary">Exportar para Excel</button>
+                        <div class="flex flex-between mb-10">
+                            <div>
+                                <p>Total de registros: <strong id="export-count">0</strong></p>
+                            </div>
+                            <div>
+                                <p>Data: <strong id="export-date">--/--/----</strong></p>
+                            </div>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="card">
                     <div class="card-header">
-                        <h3 class="card-title">Exportar para Supabase</h3>
+                        <h3 class="card-title">Registros para Exportação</h3>
                     </div>
-                    <div class="card-body">
-                        <p>Exporte os dados processados para a base de dados Supabase.</p>
-                        <div class="flex flex-center mt-20">
-                            <button id="export-supabase-btn" class="btn btn-primary">Exportar para Supabase</button>
-                        </div>
+                    <div class="table-container">
+                        <table class="table" id="export-table">
+                            <thead>
+                                <tr>
+                                    <th>Matrícula</th>
+                                    <th>Condutor</th>
+                                    <th>Método Pagamento</th>
+                                    <th>Preço Booking</th>
+                                    <th>Preço na Entrega</th>
+                                    <th>Diferença</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="7" class="text-center">Nenhum dado disponível para exportação.</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
+                </div>
+
+                <div class="flex flex-center mt-20">
+                    <button id="export-btn" class="btn btn-primary">Exportar para Excel</button>
                 </div>
             </section>
         </main>
     </div>
 
     <!-- Modais -->
-    <!-- Modal de Detalhes da Entrega -->
     <div class="modal-overlay" id="details-modal-overlay">
         <div class="modal">
             <div class="modal-header">
-                <h3>Detalhes da Entrega</h3>
-                <button class="modal-close-btn">&times;</button>
+                <h3 class="modal-title">Detalhes do Registro</h3>
+                <button class="modal-close">&times;</button>
             </div>
             <div class="modal-body" id="details-modal-body">
                 <!-- Conteúdo será inserido via JavaScript -->
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary modal-close-btn">Fechar</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="edit-modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Resolver Inconsistência</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="edit-modal-body">
+                <!-- Conteúdo será inserido via JavaScript -->
             </div>
         </div>
     </div>
 
-    <!-- Modal de Validação de Entrega -->
-    <div class="modal-overlay" id="validate-delivery-modal-overlay">
+    <div class="modal-overlay" id="validate-modal-overlay">
         <div class="modal">
             <div class="modal-header">
-                <h3>Validar Entrega</h3>
-                <button class="modal-close-btn">&times;</button>
+                <h3 class="modal-title">Validar Entrega</h3>
+                <button class="modal-close">&times;</button>
             </div>
-            <div class="modal-body" id="validate-delivery-modal-body">
+            <div class="modal-body" id="validate-modal-body">
                 <!-- Conteúdo será inserido via JavaScript -->
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary modal-close-btn">Cancelar</button>
-                <button class="btn btn-primary" id="confirm-validate-btn">Validar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Correção de Entrega -->
-    <div class="modal-overlay" id="correct-delivery-modal-overlay">
-        <div class="modal">
-            <div class="modal-header">
-                <h3>Corrigir Entrega</h3>
-                <button class="modal-close-btn">&times;</button>
-            </div>
-            <div class="modal-body" id="correct-delivery-modal-body">
-                <!-- Conteúdo será inserido via JavaScript -->
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary modal-close-btn">Cancelar</button>
-                <button class="btn btn-primary" id="confirm-correction-btn">Salvar Correção</button>
+                <button id="confirm-delivery-btn" class="btn btn-primary">Confirmar</button>
+                <button id="cancel-delivery-btn" class="btn btn-secondary">Cancelar</button>
             </div>
         </div>
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/supabase-utils.js"></script>
+    <script src="js/auth.js"></script>
     <script src="js/fileProcessor.js"></script>
     <script src="js/comparator.js"></script>
     <script src="js/validator.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/exporter.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
