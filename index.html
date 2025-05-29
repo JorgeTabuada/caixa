@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Caixa Multipark</title>
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/additional-fixes.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -333,21 +332,44 @@
             <div class="modal-body" id="validate-modal-body">
                 <!-- Conteúdo será inserido via JavaScript -->
             </div>
-            <div class="modal-footer">
-                <button id="confirm-delivery-btn" class="btn btn-primary">Confirmar</button>
-                <button id="cancel-delivery-btn" class="btn btn-secondary">Cancelar</button>
-            </div>
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="js/supabase-utils.js"></script>
+    <!-- Script de inicialização ANTES de todos os outros -->
+    <script>
+        // Aguardar o Supabase carregar completamente
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM carregado, inicializando Supabase...');
+            
+            // Aguardar um pouco para garantir que o Supabase foi carregado
+            setTimeout(function() {
+                try {
+                    if (typeof supabase !== 'undefined') {
+                        // Inicializar Supabase globalmente
+                        window.supabase = supabase.createClient(
+                            'https://uvcmgzhwiibjcygqsjrm.supabase.co',
+                            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2Y21nemh3aWliamN5Z3FzanJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNDE3NTUsImV4cCI6MjA2MzYxNzc1NX0.br9Ah2nlwNNfigdLo8uSWgWavZU4wlvWMxDMyClQVoQ'
+                        );
+                        console.log('✅ Supabase client initialized:', window.supabase);
+                        
+                        // Disparar evento customizado para indicar que o Supabase está pronto
+                        window.dispatchEvent(new CustomEvent('supabaseReady'));
+                    } else {
+                        console.error('❌ Supabase library not loaded');
+                    }
+                } catch (error) {
+                    console.error('❌ Erro ao inicializar Supabase:', error);
+                }
+            }, 100);
+        });
+    </script>
+    
+    <!-- Scripts em ordem correta - DEPOIS da inicialização -->
     <script src="js/auth.js"></script>
-    <script src="js/fileProcessor.js"></script>
+    <script src="js/supabase-utils.js"></script>
     <script src="js/comparator.js"></script>
     <script src="js/validator.js"></script>
-    <script src="js/dashboard.js"></script>
-    <script src="js/exporter.js"></script>
+    <script src="js/fileProcessor.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
