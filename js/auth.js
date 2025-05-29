@@ -176,11 +176,41 @@ async function checkAuthentication() {
  * Configura listeners para mudanças de autenticação
  */
 function setupAuthListeners() {
+    // Verificação robusta para garantir que tanto window.supabase quanto window.supabase.auth existem
     if (!window.supabase || !window.supabase.auth) {
-        console.error('Cliente Supabase ou auth não inicializado para auth listeners');
+        console.warn('Cliente Supabase ou auth não inicializado para auth listeners. Tentando novamente em 1 segundo...');
+        
+        // Implementar retry automático
+        setTimeout(() => {
+            if (window.supabase && window.supabase.auth) {
+                console.log('✅ Retry: Supabase auth disponível agora, configurando listeners...');
+                setupAuthListenersInternal();
+                window.authListenersConfigured = true;
+            } else {
+                console.error('❌ Retry falhou: Cliente Supabase ou auth ainda não inicializado');
+                
+                // Tentar novamente após mais tempo
+                setTimeout(() => {
+                    if (window.supabase && window.supabase.auth) {
+                        console.log('✅ Segundo retry: Supabase auth disponível agora, configurando listeners...');
+                        setupAuthListenersInternal();
+                        window.authListenersConfigured = true;
+                    }
+                }, 2000);
+            }
+        }, 1000);
         return;
     }
+    
+    // Se chegou aqui, window.supabase.auth está disponível
+    setupAuthListenersInternal();
+    window.authListenersConfigured = true;
+}
 
+/**
+ * Função interna que configura os listeners quando auth está disponível
+ */
+function setupAuthListenersInternal() {
     try {
         window.supabase.auth.onAuthStateChange((event, session) => {
             console.log('Mudança de estado da autenticação:', event, session?.user?.email);
