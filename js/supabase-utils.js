@@ -1,6 +1,39 @@
 // Utilitários para Supabase - Versão corrigida sem ES6 imports
 // Funções para interagir com o Supabase
 
+// Função para converter data para formato ISO
+function formatDateForDB(dateValue) {
+    if (!dateValue) return null;
+    
+    try {
+        // Se já é uma data válida ISO, retorna como está
+        if (typeof dateValue === 'string' && dateValue.includes('T')) {
+            return dateValue;
+        }
+        
+        // Converter formatos pt-BR para ISO
+        let dateStr = String(dateValue);
+        
+        // Formato "18/05/2025, 12:18" -> "2025-05-18T12:18:00"
+        if (dateStr.includes('/') && dateStr.includes(',')) {
+            const [datePart, timePart] = dateStr.split(', ');
+            const [day, month, year] = datePart.split('/');
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${timePart}:00`;
+        }
+        
+        // Formato "18/05/2025" -> "2025-05-18"
+        if (dateStr.includes('/')) {
+            const [day, month, year] = dateStr.split('/');
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+        
+        return null;
+    } catch (error) {
+        console.warn('Erro ao formatar data:', dateValue, error);
+        return null;
+    }
+}
+
 /**
  * Cria um novo lote de importação
  * @param {Object} batchInfo - Informações sobre o lote de importação
@@ -57,9 +90,9 @@ async function importSalesOrders(salesData, batchId) {
             booking_price: parseFloat(record['Booking Price'] || record.bookingPrice || record['Preço Booking'] || 0),
             park_brand: record['Park Brand'] || record.parkBrand || record['Marca'] || '',
             share: parseFloat(record['Share'] || record.share || 0),
-            booking_date: record['Booking Date'] || record.bookingDate || null,
-            check_in: record['Check In'] || record.checkIn || null,
-            check_out: record['Check Out'] || record.checkOut || null,
+            booking_date: formatDateForDB(record['Booking Date'] || record.bookingDate),
+            check_in: formatDateForDB(record['Check In'] || record.checkIn),
+            check_out: formatDateForDB(record['Check Out'] || record.checkOut),
             price_on_delivery: parseFloat(record['Price on Delivery'] || record.priceOnDelivery || record['Preço na Entrega'] || 0),
             payment_method: (record['Payment Method'] || record.paymentMethod || record['Método Pagamento'] || '').toLowerCase(),
             driver: record['Driver'] || record.driver || record['Condutor'] || '',
@@ -115,7 +148,7 @@ async function importDeliveries(deliveriesData, batchId) {
         booking_price: parseFloat(record['Booking Price'] || record.bookingPrice || record['Preço Booking'] || 0),
         park_brand: record['Park Brand'] || record.parkBrand || record['Marca'] || '',
         campaign: record['Campaign'] || record.campaign || record['Campanha'] || '',
-        check_in: record['Check In'] || record.checkIn || null,
+        check_in: formatDateForDB(record['Check In'] || record.checkIn),
         driver: record['Driver'] || record.driver || record['Condutor'] || '',
         campaign_pay: (record['Campaign Pay'] || record.campaignPay || 'false').toString().toLowerCase() === 'true',
         has_online_payment: (record['Has Online Payment'] || record.hasOnlinePayment || 'false').toString().toLowerCase() === 'true',

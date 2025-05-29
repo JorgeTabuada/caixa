@@ -176,8 +176,8 @@ async function checkAuthentication() {
  * Configura listeners para mudanças de autenticação
  */
 function setupAuthListeners() {
-    if (!window.supabase) {
-        console.error('Cliente Supabase não inicializado para auth listeners');
+    if (!window.supabase || !window.supabase.auth) {
+        console.error('Cliente Supabase ou auth não inicializado para auth listeners');
         return;
     }
 
@@ -186,12 +186,10 @@ function setupAuthListeners() {
             console.log('Mudança de estado da autenticação:', event, session?.user?.email);
             
             if (event === 'SIGNED_OUT') {
-                // Redirecionar para login após logout
                 if (!window.location.pathname.includes('login.html')) {
                     window.location.href = 'login.html';
                 }
             } else if (event === 'SIGNED_IN') {
-                // Redirecionar para página principal após login
                 if (window.location.pathname.includes('login.html')) {
                     window.location.href = 'index.html';
                 }
