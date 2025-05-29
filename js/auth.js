@@ -1,5 +1,5 @@
 // Funções de autenticação para a aplicação Caixa Multipark
-// Versão corrigida
+// Versão corrigida com inicialização segura
 
 /**
  * Realiza o login do utilizador
@@ -177,25 +177,31 @@ async function checkAuthentication() {
  */
 function setupAuthListeners() {
     if (!window.supabase) {
-        console.error('Cliente Supabase não inicializado');
+        console.error('Cliente Supabase não inicializado para auth listeners');
         return;
     }
 
-    window.supabase.auth.onAuthStateChange((event, session) => {
-        console.log('Mudança de estado da autenticação:', event, session?.user?.email);
+    try {
+        window.supabase.auth.onAuthStateChange((event, session) => {
+            console.log('Mudança de estado da autenticação:', event, session?.user?.email);
+            
+            if (event === 'SIGNED_OUT') {
+                // Redirecionar para login após logout
+                if (!window.location.pathname.includes('login.html')) {
+                    window.location.href = 'login.html';
+                }
+            } else if (event === 'SIGNED_IN') {
+                // Redirecionar para página principal após login
+                if (window.location.pathname.includes('login.html')) {
+                    window.location.href = 'index.html';
+                }
+            }
+        });
         
-        if (event === 'SIGNED_OUT') {
-            // Redirecionar para login após logout
-            if (!window.location.pathname.includes('login.html')) {
-                window.location.href = 'login.html';
-            }
-        } else if (event === 'SIGNED_IN') {
-            // Redirecionar para página principal após login
-            if (window.location.pathname.includes('login.html')) {
-                window.location.href = 'index.html';
-            }
-        }
-    });
+        console.log('✅ Auth listeners configurados com sucesso');
+    } catch (error) {
+        console.error('❌ Erro ao configurar auth listeners:', error);
+    }
 }
 
 // Expor funções globalmente
@@ -208,7 +214,35 @@ window.authUtils = {
     setupAuthListeners
 };
 
-// Configurar listeners quando o script carregar
-document.addEventListener('DOMContentLoaded', () => {
-    setupAuthListeners();
-});
+// Aguardar o Supabase estar pronto antes de configurar listeners
+function initAuthModule() {
+    if (window.supabase) {
+        console.log('✅ Auth module: Supabase disponível, configurando listeners...');
+        setupAuthListeners();
+    } else {
+        console.log('⏳ Auth module: Aguardando Supabase...');
+        // Aguardar evento customizado ou tentar novamente em breve
+        if (typeof window.addEventListener !== 'undefined') {
+            window.addEventListener('supabaseReady', function() {
+                console.log('✅ Auth module: Recebido evento supabaseReady');
+                setupAuthListeners();
+            });
+        }
+        
+        // Fallback: tentar novamente após um tempo
+        setTimeout(function() {
+            if (window.supabase && !window.authListenersConfigured) {
+                console.log('✅ Auth module: Configurando listeners via fallback...');
+                setupAuthListeners();
+                window.authListenersConfigured = true;
+            }
+        }, 1000);
+    }
+}
+
+// Inicializar quando o DOM estiver pronto
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAuthModule);
+} else {
+    initAuthModule();
+}
