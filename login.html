@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/additional-fixes.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
     <div class="login-container">
@@ -49,49 +49,28 @@
             // Aguardar um pouco para garantir que o Supabase foi carregado
             setTimeout(function() {
                 try {
-                    // Verificar qual método de inicialização está disponível na versão carregada
-                    if (typeof window.supabase === 'object' && typeof window.supabase.createClient === 'function') {
-                        // Método 1: Usando objeto global supabase
-                        window.supabaseClient = window.supabase.createClient(
-                            'https://uvcmgzhwiibjcygqsjrm.supabase.co',
-                            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2Y21nemh3aWliamN5Z3FzanJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNDE3NTUsImV4cCI6MjA2MzYxNzc1NX0.br9Ah2nlwNNfigdLo8uSWgWavZU4wlvWMxDMyClQVoQ'
-                        );
-                        window.supabase = window.supabaseClient;
-                        console.log('✅ Login: Supabase client initialized (método 1):', window.supabase);
-                    } else if (typeof createClient === 'function') {
-                        // Método 2: Usando função global createClient
-                        window.supabase = createClient(
-                            'https://uvcmgzhwiibjcygqsjrm.supabase.co',
-                            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2Y21nemh3aWliamN5Z3FzanJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNDE3NTUsImV4cCI6MjA2MzYxNzc1NX0.br9Ah2nlwNNfigdLo8uSWgWavZU4wlvWMxDMyClQVoQ'
-                        );
-                        console.log('✅ Login: Supabase client initialized (método 2):', window.supabase);
-                    } else if (typeof window.Supabase === 'object' && typeof window.Supabase.createClient === 'function') {
-                        // Método 3: Usando objeto global Supabase (com S maiúsculo)
-                        window.supabase = window.Supabase.createClient(
-                            'https://uvcmgzhwiibjcygqsjrm.supabase.co',
-                            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2Y21nemh3aWliamN5Z3FzanJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNDE3NTUsImV4cCI6MjA2MzYxNzc1NX0.br9Ah2nlwNNfigdLo8uSWgWavZU4wlvWMxDMyClQVoQ'
-                        );
-                        console.log('✅ Login: Supabase client initialized (método 3):', window.supabase);
-                    } else {
-                        console.error('❌ Login: Nenhum método de inicialização do Supabase disponível');
-                        console.log('Objetos disponíveis:', {
-                            'window.supabase': typeof window.supabase,
-                            'window.Supabase': typeof window.Supabase,
-                            'createClient': typeof createClient
-                        });
-                    }
+                    console.log('Verificando disponibilidade do Supabase:', typeof supabase);
                     
-                    // Disparar evento customizado se o cliente foi inicializado
-                    if (window.supabase) {
+                    // Usar a versão UMD que expõe o objeto global 'supabase'
+                    if (typeof supabase !== 'undefined') {
+                        // Criar cliente Supabase
+                        window.supabase = supabase.createClient(
+                            'https://uvcmgzhwiibjcygqsjrm.supabase.co',
+                            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2Y21nemh3aWliamN5Z3FzanJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNDE3NTUsImV4cCI6MjA2MzYxNzc1NX0.br9Ah2nlwNNfigdLo8uSWgWavZU4wlvWMxDMyClQVoQ'
+                        );
+                        console.log('✅ Login: Supabase client initialized:', window.supabase);
+                        
+                        // Disparar evento customizado
                         window.dispatchEvent(new CustomEvent('supabaseReady'));
                         
                         // Inicializar login após Supabase estar pronto
                         initLoginPage();
+                    } else {
+                        console.error('❌ Login: Supabase não está disponível globalmente');
                     }
                 } catch (error) {
                     console.error('❌ Login: Erro ao inicializar Supabase:', error);
-                }
-            }, 100);
+                }, 300); // Aumentar o tempo de espera para garantir que o Supabase carregue completamente
         });
     </script>
     <!-- Auth script -->
