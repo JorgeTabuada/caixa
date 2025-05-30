@@ -1,64 +1,6 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "**",
-      "use": "@vercel/static"
-    }
-  ],
   "routes": [
-    {
-      "src": "/",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/login",
-      "dest": "/login.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self';"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN" 
-        }
-      ]
-    },
-    {
-      "source": "/(css|js)/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/(.*)\\.(?:ico|gif|png|jpg|jpeg|svg|woff|woff2|ttf|eot|otf)$",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    }
-  ],
-  "github": {
-    "enabled": true,
-    "silent": false
-  }
+    { "src": "/", "dest": "/index.html" },
+    { "src": "/login", "dest": "/login.html" }
+  ]
 }
