@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Caixa Multipark</title>
-    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="css/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -22,7 +22,7 @@
                 <h1>Caixa Multipark</h1>
             </div>
             <div class="session-info">
-                <span id="current-date">21/04/2025</span>
+                <span id="current-date">31/05/2025</span>
             </div>
         </div>
     </header>
@@ -45,12 +45,12 @@
                 
                 <div class="card mb-20">
                     <div class="card-header">
-                        <h3 class="card-title">Arquivo Odoo</h3>
+                        <h3 class="card-title">Arquivo Sales Orders (Odoo)</h3>
                     </div>
                     <div class="file-upload" id="odoo-upload">
                         <i class="fas fa-file-excel file-upload-icon"></i>
-                        <p class="file-upload-text">Arraste e solte o arquivo Odoo aqui ou clique para selecionar</p>
-                        <input type="file" id="odoo-file" class="hidden" accept=".xlsx, .xls" aria-label="Carregar arquivo Odoo">
+                        <p class="file-upload-text">Arraste e solte o arquivo Sales Orders aqui ou clique para selecionar</p>
+                        <input type="file" id="odoo-file" class="hidden" accept=".xlsx, .xls" aria-label="Carregar arquivo Sales Orders">
                         <button class="btn btn-primary">Selecionar Arquivo</button>
                     </div>
                     <div id="odoo-file-info" class="hidden">
@@ -60,12 +60,12 @@
 
                 <div class="card mb-20">
                     <div class="card-header">
-                        <h3 class="card-title">Arquivo Back Office</h3>
+                        <h3 class="card-title">Arquivo Entregas (Back Office)</h3>
                     </div>
                     <div class="file-upload" id="backoffice-upload">
                         <i class="fas fa-file-excel file-upload-icon"></i>
-                        <p class="file-upload-text">Arraste e solte o arquivo Back Office aqui ou clique para selecionar</p>
-                        <input type="file" id="backoffice-file" class="hidden" accept=".xlsx, .xls" aria-label="Carregar arquivo Back Office">
+                        <p class="file-upload-text">Arraste e solte o arquivo Entregas aqui ou clique para selecionar</p>
+                        <input type="file" id="backoffice-file" class="hidden" accept=".xlsx, .xls" aria-label="Carregar arquivo Entregas">
                         <button class="btn btn-primary">Selecionar Arquivo</button>
                     </div>
                     <div id="backoffice-file-info" class="hidden">
@@ -80,7 +80,7 @@
 
             <!-- Seção de Comparação Odoo vs Back Office -->
             <section id="compare-section" class="content-section">
-                <h2 class="card-title mb-20">Comparação Odoo vs Back Office</h2>
+                <h2 class="card-title mb-20">Comparação Sales Orders vs Entregas</h2>
                 
                 <div class="card mb-20">
                     <div class="card-header">
@@ -89,8 +89,8 @@
                     <div class="card-body">
                         <div class="flex flex-between mb-10">
                             <div>
-                                <p>Total de registros no Odoo: <strong id="odoo-count">0</strong></p>
-                                <p>Total de registros no Back Office: <strong id="backoffice-count">0</strong></p>
+                                <p>Total de registros em Sales Orders: <strong id="odoo-count">0</strong></p>
+                                <p>Total de registros em Entregas: <strong id="backoffice-count">0</strong></p>
                             </div>
                             <div>
                                 <p>Registros com inconsistências: <strong id="inconsistency-count" class="status-error">0</strong></p>
@@ -115,15 +115,14 @@
                                 <tr>
                                     <th>Matrícula</th>
                                     <th>Alocação</th>
-                                    <th>Preço Booking (BO)</th>
-                                    <th>Preço Booking (Odoo)</th>
+                                    <th>Preço Booking (Entregas)</th>
+                                    <th>Preço Booking (Sales Orders)</th>
                                     <th>Marca</th>
                                     <th>Status</th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Dados serão inseridos via JavaScript -->
                                 <tr>
                                     <td colspan="7" class="text-center">Nenhum dado disponível. Importe os arquivos primeiro.</td>
                                 </tr>
@@ -165,7 +164,6 @@
                             <label for="driver-select" class="form-label">Condutor:</label>
                             <select id="driver-select" class="form-control">
                                 <option value="">Selecione um condutor</option>
-                                <!-- Opções serão inseridas via JavaScript -->
                             </select>
                         </div>
                     </div>
@@ -192,7 +190,6 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Dados serão inseridos via JavaScript -->
                             </tbody>
                         </table>
                     </div>
@@ -244,7 +241,6 @@
                         </div>
                         <div class="card-body">
                             <div id="park-breakdown">
-                                <!-- Dados serão inseridos via JavaScript -->
                                 <p class="text-center">Nenhum dado disponível.</p>
                             </div>
                         </div>
@@ -290,7 +286,6 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Dados serão inseridos via JavaScript -->
                                 <tr>
                                     <td colspan="7" class="text-center">Nenhum dado disponível para exportação.</td>
                                 </tr>
@@ -314,7 +309,6 @@
                 <button class="modal-close">&times;</button>
             </div>
             <div class="modal-body" id="details-modal-body">
-                <!-- Conteúdo será inserido via JavaScript -->
             </div>
         </div>
     </div>
@@ -326,12 +320,24 @@
                 <button class="modal-close">&times;</button>
             </div>
             <div class="modal-body" id="edit-modal-body">
-                <!-- Conteúdo será inserido via JavaScript -->
             </div>
         </div>
     </div>
 
     <div class="modal-overlay" id="validate-modal-overlay">
         <div class="modal">
-            <div class="moda
-(Content truncated due to size limit. Use line ranges to read in chunks)
+            <div class="modal-header">
+                <h3 class="modal-title">Validar Entrega</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="validate-modal-body">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Atualizar data atual
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('pt-PT');
+    </script>
+</body>
+</html>
