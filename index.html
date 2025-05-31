@@ -8,10 +8,22 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/app.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        // Inicializar Supabase globalmente
+        const SUPABASE_URL = 'https://uvcmgzhwiibjcygqsjrm.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2Y21nemh3aWliamN5Z3FzanJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNDE3NTUsImV4cCI6MjA2MzYxNzc1NX0.br9Ah2nlwNNfigdLo8uSWgWavZU4wlvWMxDMyClQVoQ';
+        
+        // Aguardar o carregamento da página
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof supabase !== 'undefined' && typeof supabase.createClient === 'function') {
+                window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('Supabase inicializado com sucesso!');
+            } else {
+                console.error('Erro: Supabase não carregado corretamente');
+            }
+        });
+    </script>
 </head>
 <body>
     <!-- Cabeçalho -->
@@ -136,6 +148,7 @@
                 </div>
             </section>
 
+            <!-- Outras seções continuam iguais... -->
             <!-- Seção de Validação de Caixa -->
             <section id="validate-section" class="content-section">
                 <h2 class="card-title mb-20">Validação de Caixa</h2>
@@ -301,39 +314,10 @@
         </main>
     </div>
 
-    <!-- Modais -->
-    <div class="modal-overlay" id="details-modal-overlay">
-        <div class="modal">
-            <div class="modal-header">
-                <h3 class="modal-title">Detalhes do Registro</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body" id="details-modal-body">
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="edit-modal-overlay">
-        <div class="modal">
-            <div class="modal-header">
-                <h3 class="modal-title">Resolver Inconsistência</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body" id="edit-modal-body">
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="validate-modal-overlay">
-        <div class="modal">
-            <div class="modal-header">
-                <h3 class="modal-title">Validar Entrega</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body" id="validate-modal-body">
-            </div>
-        </div>
-    </div>
+    <!-- Scripts -->
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
 
     <script>
         // Atualizar data atual
