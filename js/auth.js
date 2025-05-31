@@ -1,140 +1,157 @@
-// Funções de autenticação para a aplicação Caixa Multipark
-// Versão adaptada para uso com CDN em ambiente estático
+// Funções de autenticação para Caixa Multipark
 
 /**
- * Realiza o login do utilizador
- * @param {string} email - Email do utilizador
- * @param {string} password - Password do utilizador
- * @returns {Promise<Object>} - Resultado da operação de login
+ * Faz login do utilizador
  */
 async function login(email, password) {
-    if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
-        throw new Error('Cliente Supabase não inicializado');
+    if (!window.supabase) {
+        throw new Error('Sistema de autenticação não disponível');
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
+    const { data, error } = await window.supabase.auth.signInWithPassword({
+        email: email,
+        password: password
     });
 
     if (error) {
-        console.error('Erro ao fazer login:', error);
         throw error;
     }
 
     return data;
+}
+
+/**
+ * Faz logout do utilizador
+ */
+async function logout() {
+    if (!window.supabase) {
+        throw new Error('Sistema de autenticação não disponível');
+    }
+
+    const { error } = await window.supabase.auth.signOut();
+    
+    if (error) {
+        throw error;
+    }
+
+    // Redirecionar para página de login
+    window.location.href = 'login.html';
 }
 
 /**
  * Verifica se o utilizador está autenticado
- * @returns {Promise<Object>} - Informações da sessão atual
  */
-async function checkSession() {
-    if (!supabase) {
+async function checkAuthentication() {
+    if (!window.supabase) {
         console.error('Cliente Supabase não inicializado');
-        throw new Error('Cliente Supabase não inicializado');
+        return false;
     }
 
-    const { data, error } = await supabase.auth.getSession();
-    
-    if (error) {
-        console.error('Erro ao verificar sessão:', error);
-        throw error;
+    try {
+        const { data: { session } } = await window.supabase.auth.getSession();
+        
+        if (!session) {
+            // Não está autenticado, redirecionar para login
+            if (window.location.pathname !== '/login.html' && !window.location.pathname.endsWith('login.html')) {
+                window.location.href = 'login.html';
+            }
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Erro ao verificar autenticação:', error);
+        return false;
     }
-    
-    return data;
 }
 
 /**
  * Obtém informações do utilizador atual
- * @returns {Promise<Object>} - Dados do utilizador
  */
 async function getCurrentUser() {
-    if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
-        throw new Error('Cliente Supabase não inicializado');
+    if (!window.supabase) {
+        throw new Error('Sistema de autenticação não disponível');
     }
 
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-        console.error('Erro ao obter sessão:', sessionError);
-        throw sessionError;
-    }
-    
-    if (!session) {
-        return null;
-    }
-    
-    const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
+    const { data: { user }, error } = await window.supabase.auth.getUser();
     
     if (error) {
-        console.error('Erro ao obter dados do utilizador:', error);
         throw error;
     }
-    
+
+    return user;
+}
+
+/**
+ * Cria uma conta de utilizador
+ */
+async function signUp(email, password, fullName) {
+    if (!window.supabase) {
+        throw new Error('Sistema de autenticação não disponível');
+    }
+
+    const { data, error } = await window.supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+            data: {
+                full_name: fullName
+            }
+        }
+    });
+
+    if (error) {
+        throw error;
+    }
+
     return data;
 }
 
 /**
- * Realiza o logout do utilizador
- * @returns {Promise<void>}
+ * Configura listeners para mudanças de estado de autenticação
  */
-async function logout() {
-    if (!supabase) {
+function setupAuthStateListener() {
+    if (!window.supabase) {
         console.error('Cliente Supabase não inicializado');
-        throw new Error('Cliente Supabase não inicializado');
+        return;
     }
 
-    const { error } = await supabase.auth.signOut();
-    
-    if (error) {
-        console.error('Erro ao fazer logout:', error);
-        throw error;
-    }
-}
-
-/**
- * Redireciona para a página principal se autenticado ou para login se não
- * @returns {Promise<boolean>} - True se autenticado, false caso contrário
- */
-async function checkAuthentication() {
-    if (!supabase) {
-        console.error('Cliente Supabase não inicializado');
-        // Redirecionar para login por segurança
-        if (!window.location.pathname.includes('login.html')) {
-            window.location.href = 'login.html';
+    window.supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Estado de autenticação mudou:', event, session);
+        
+        if (event === 'SIGNED_IN') {
+            console.log('Utilizador fez login');
+        } else if (event === 'SIGNED_OUT') {
+            console.log('Utilizador fez logout');
+            // Redirecionar para login se não estiver já lá
+            if (window.location.pathname !== '/login.html' && !window.location.pathname.endsWith('login.html')) {
+                window.location.href = 'login.html';
+            }
         }
-        return false;
-    }
-
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-        // Redirecionar para login se não estiver na página de login
-        if (!window.location.pathname.includes('login.html')) {
-            window.location.href = 'login.html';
-        }
-        return false;
-    } else {
-        // Redirecionar para index se estiver na página de login
-        if (window.location.pathname.includes('login.html')) {
-            window.location.href = 'index.html';
-        }
-        return true;
-    }
+    });
 }
 
 // Expor funções globalmente
 window.authUtils = {
     login,
-    checkSession,
-    getCurrentUser,
     logout,
-    checkAuthentication
+    checkAuthentication,
+    getCurrentUser,
+    signUp,
+    setupAuthStateListener
 };
+
+// Configurar listener quando o script carregar
+document.addEventListener('DOMContentLoaded', () => {
+    // Aguardar um pouco para garantir que o Supabase está carregado
+    setTimeout(() => {
+        setupAuthStateListener();
+        
+        // Verificar autenticação apenas se não estivermos na página de login
+        if (!window.location.pathname.endsWith('login.html')) {
+            checkAuthentication();
+        }
+    }, 1000);
+});
+
+console.log('Auth utils carregado com sucesso!');
