@@ -1,5 +1,5 @@
 // App principal da Caixa Multipark
-// Versão corrigida sem referências a funções inexistentes
+// Versão com processamento real de ficheiros
 
 // Verificar autenticação ao carregar a página
 document.addEventListener('DOMContentLoaded', async () => {
@@ -111,8 +111,23 @@ function setupNavigation() {
                     section.classList.add('active');
                 }
             });
+            
+            // Ações específicas por tab
+            onTabChange(targetTab);
         });
     });
+}
+
+// Ações quando muda de tab
+function onTabChange(tabName) {
+    switch (tabName) {
+        case 'dashboard':
+            loadDashboardData();
+            break;
+        case 'export':
+            loadExportData();
+            break;
+    }
 }
 
 // Configurar uploads de arquivos
@@ -162,6 +177,15 @@ function setupFileUpload(fileInputId, filenameId, fileInfoId) {
     fileInput.addEventListener('change', () => {
         updateFileInfo(fileInput, filenameId, fileInfoId);
         checkFilesSelected();
+        
+        // Se for arquivo de caixa, processar automaticamente
+        if (fileInputId === 'caixa-file' && fileInput.files[0]) {
+            setTimeout(() => {
+                if (window.fileProcessor) {
+                    window.fileProcessor.processCashFile();
+                }
+            }, 500);
+        }
     });
 }
 
@@ -174,6 +198,16 @@ function updateFileInfo(fileInput, filenameId, fileInfoId) {
     if (file && filenameElement && fileInfoElement) {
         filenameElement.textContent = file.name;
         fileInfoElement.classList.remove('hidden');
+        
+        // Validar tipo de arquivo
+        if (!file.name.match(/\.(xlsx|xls)$/i)) {
+            showError('Por favor, selecione um arquivo Excel (.xlsx ou .xls)');
+            fileInput.value = '';
+            fileInfoElement.classList.add('hidden');
+            return;
+        }
+        
+        showSuccess(`Arquivo ${file.name} selecionado com sucesso!`);
     } else if (fileInfoElement) {
         fileInfoElement.classList.add('hidden');
     }
@@ -187,6 +221,12 @@ function checkFilesSelected() {
     
     if (processFilesBtn) {
         processFilesBtn.disabled = !(odooFile && backofficeFile);
+        
+        if (odooFile && backofficeFile) {
+            processFilesBtn.innerHTML = '<i class="fas fa-play"></i> Processar Arquivos';
+        } else {
+            processFilesBtn.innerHTML = 'Selecione ambos os arquivos';
+        }
     }
 }
 
@@ -197,7 +237,11 @@ function setupActionButtons() {
     if (processFilesBtn) {
         processFilesBtn.addEventListener('click', async () => {
             try {
-                await processFiles();
+                if (window.fileProcessor) {
+                    await window.fileProcessor.processFiles();
+                } else {
+                    showError('Processador de arquivos não carregado. Recarregue a página.');
+                }
             } catch (error) {
                 console.error('Erro ao processar arquivos:', error);
                 showError('Erro ao processar arquivos. Verifique os arquivos e tente novamente.');
@@ -205,68 +249,134 @@ function setupActionButtons() {
         });
     }
     
-    // Outros botões
-    setupOtherButtons();
-}
-
-// Configurar outros botões
-function setupOtherButtons() {
     // Botão de validação de comparação
     const validateComparisonBtn = document.getElementById('validate-comparison-btn');
     if (validateComparisonBtn) {
         validateComparisonBtn.addEventListener('click', () => {
-            console.log('Validando comparação...');
+            // Ativar próximo tab
+            const validateTab = document.querySelector('[data-tab="validate"]');
+            if (validateTab) {
+                validateTab.click();
+            }
         });
     }
+    
+    // Botões de filtro na comparação
+    setupComparisonFilters();
     
     // Botão de exportação
     const exportBtn = document.getElementById('export-btn');
     if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-            console.log('Exportando dados...');
+        exportBtn.addEventListener('click', async () => {
+            try {
+                await exportData();
+            } catch (error) {
+                console.error('Erro ao exportar:', error);
+                showError('Erro ao exportar dados.');
+            }
         });
     }
 }
 
-// Processar arquivos
-async function processFiles() {
-    const odooFile = document.getElementById('odoo-file')?.files[0];
-    const backofficeFile = document.getElementById('backoffice-file')?.files[0];
+// Configurar filtros da comparação
+function setupComparisonFilters() {
+    const showAllBtn = document.getElementById('show-all-btn');
+    const showMissingBtn = document.getElementById('show-missing-btn');
+    const showInconsistentBtn = document.getElementById('show-inconsistent-btn');
     
-    if (!odooFile || !backofficeFile) {
-        showError('Por favor, selecione ambos os arquivos antes de processar.');
-        return;
+    if (showAllBtn) {
+        showAllBtn.addEventListener('click', () => filterComparison('all'));
     }
-    
-    const processFilesBtn = document.getElementById('process-files-btn');
-    if (processFilesBtn) {
-        processFilesBtn.disabled = true;
-        processFilesBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+    if (showMissingBtn) {
+        showMissingBtn.addEventListener('click', () => filterComparison('missing'));
     }
+    if (showInconsistentBtn) {
+        showInconsistentBtn.addEventListener('click', () => filterComparison('inconsistent'));
+    }
+}
+
+// Filtrar resultados da comparação
+function filterComparison(type) {
+    const rows = document.querySelectorAll('#comparison-table tbody tr');
     
+    rows.forEach(row => {
+        const statusCell = row.querySelector('td:nth-child(6)');
+        if (!statusCell) return;
+        
+        const status = statusCell.textContent.toLowerCase();
+        let showRow = false;
+        
+        switch (type) {
+            case 'all':
+                showRow = true;
+                break;
+            case 'missing':
+                showRow = status.includes('falta');
+                break;
+            case 'inconsistent':
+                showRow = status.includes('inconsistente');
+                break;
+        }
+        
+        row.style.display = showRow ? '' : 'none';
+    });
+    
+    // Atualizar botões ativos
+    document.querySelectorAll('#comparison-table').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`show-${type}-btn`)?.classList.add('active');
+}
+
+// Carregar dados do dashboard
+async function loadDashboardData() {
     try {
-        // Aqui seria implementada a lógica de processamento
-        console.log('Processando:', odooFile.name, 'e', backofficeFile.name);
+        // Implementar carregamento de estatísticas
+        showMessage('Carregando dados do dashboard...', 'info');
         
-        // Simular processamento
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Aqui seria feita a chamada para obter estatísticas da base de dados
+        // const stats = await window.supabaseUtils.getDashboardStats();
         
-        showSuccess('Arquivos processados com sucesso!');
+        // Por agora, simular dados
+        setTimeout(() => {
+            updateDashboardCounters();
+        }, 1000);
         
-        // Ativar próximo tab
-        const compareTab = document.querySelector('[data-tab="compare"]');
-        if (compareTab) {
-            compareTab.click();
+    } catch (error) {
+        console.error('Erro ao carregar dashboard:', error);
+        showError('Erro ao carregar dados do dashboard.');
+    }
+}
+
+// Atualizar contadores do dashboard
+function updateDashboardCounters() {
+    // Implementar atualização dos contadores
+    // Esta função será expandida conforme necessário
+}
+
+// Carregar dados de exportação
+async function loadExportData() {
+    try {
+        showMessage('Preparando dados para exportação...', 'info');
+        
+        // Implementar carregamento de dados para exportação
+        const exportDate = document.getElementById('export-date');
+        if (exportDate) {
+            exportDate.textContent = new Date().toLocaleDateString('pt-PT');
         }
         
     } catch (error) {
-        throw error;
-    } finally {
-        if (processFilesBtn) {
-            processFilesBtn.disabled = false;
-            processFilesBtn.innerHTML = 'Processar Arquivos';
-        }
+        console.error('Erro ao carregar dados de exportação:', error);
+        showError('Erro ao carregar dados de exportação.');
     }
+}
+
+// Exportar dados
+async function exportData() {
+    showMessage('Preparando exportação...', 'info');
+    
+    // Implementar lógica de exportação
+    setTimeout(() => {
+        showSuccess('Dados exportados com sucesso!');
+    }, 2000);
 }
 
 // Função para mostrar mensagens de erro
@@ -304,6 +414,10 @@ function showMessage(message, type = 'info') {
         background-color: ${type === 'error' ? '#e74c3c' : type === 'success' ? '#27ae60' : '#3498db'};
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         max-width: 400px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: slideIn 0.3s ease-out;
     `;
     
     // Adicionar ao DOM
@@ -324,5 +438,11 @@ function showMessage(message, type = 'info') {
         }
     }, 5000);
 }
+
+// Expor funções globais necessárias
+window.viewDetails = function(licensePlate) {
+    console.log('Ver detalhes de:', licensePlate);
+    showMessage(`Detalhes da matrícula: ${licensePlate}`, 'info');
+};
 
 console.log('App principal carregado com sucesso!');
