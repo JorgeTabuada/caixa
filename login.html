@@ -4,16 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Caixa Multipark</title>
-    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="css/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script>
-        // Garantir que o objeto supabase está disponível globalmente
-        window.supabase = window.supabaseJs || window.supabase;
+        // Inicializar Supabase globalmente
+        const SUPABASE_URL = 'https://uvcmgzhwiibjcygqsjrm.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2Y21nemh3aWliamN5Z3FzanJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNDE3NTUsImV4cCI6MjA2MzYxNzc1NX0.br9Ah2nlwNNfigdLo8uSWgWavZU4wlvWMxDMyClQVoQ';
+        
+        // Aguardar o carregamento da página
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof supabase !== 'undefined' && typeof supabase.createClient === 'function') {
+                window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('Supabase inicializado com sucesso no login!');
+            } else {
+                console.error('Erro: Supabase não carregado corretamente');
+            }
+        });
     </script>
-    <script src="js/supabase.js"></script>
-    <script src="js/auth.js"></script>
 </head>
 <body>
     <div class="login-container">
@@ -26,12 +35,12 @@
             <form id="login-form" class="login-form">
                 <div class="form-group">
                     <label for="email" class="form-label">Email</label>
-                    <input type="email" id="email" class="form-control" placeholder="Seu email" required>
+                    <input type="email" id="email" class="form-control" placeholder="Seu email" required autocomplete="email">
                 </div>
                 
                 <div class="form-group">
                     <label for="password" class="form-label">Password</label>
-                    <input type="password" id="password" class="form-control" placeholder="Sua password" required>
+                    <input type="password" id="password" class="form-control" placeholder="Sua password" required autocomplete="current-password">
                 </div>
                 
                 <div id="login-error" class="status-error mb-10" style="display: none;"></div>
@@ -46,24 +55,6 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                // Inicializar Supabase
-                if (typeof supabaseUtils !== 'undefined') {
-                    supabaseUtils.initSupabase();
-                }
-                
-                // Verificar se o utilizador já está autenticado
-                if (typeof authUtils !== 'undefined') {
-                    const isAuthenticated = await authUtils.checkAuthentication();
-                    // Se estiver autenticado, o redirecionamento já foi feito pela função
-                }
-            } catch (error) {
-                console.error('Erro ao verificar autenticação:', error);
-                showError('Erro ao verificar autenticação. Por favor, tente novamente.');
-            }
-        });
-
         // Configurar o formulário de login
         const loginForm = document.getElementById('login-form');
         loginForm.addEventListener('submit', async (e) => {
@@ -71,29 +62,45 @@
             
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+            const submitButton = loginForm.querySelector('button[type="submit"]');
             
             try {
                 // Mostrar indicador de carregamento
-                const submitButton = loginForm.querySelector('button[type="submit"]');
                 submitButton.disabled = true;
                 submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A processar...';
                 
-                // Tentar fazer login
-                if (typeof authUtils !== 'undefined') {
-                    await authUtils.login(email, password);
-                    
-                    // Redirecionar para a página principal em caso de sucesso
-                    window.location.href = 'index.html';
-                } else {
-                    throw new Error('Módulo de autenticação não disponível');
+                // Verificar se o Supabase está disponível
+                if (!window.supabase) {
+                    throw new Error('Sistema de autenticação não disponível');
                 }
+                
+                // Tentar fazer login
+                const { data, error } = await window.supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                
+                if (error) {
+                    throw error;
+                }
+                
+                // Login bem-sucedido
+                console.log('Login bem-sucedido:', data);
+                window.location.href = 'index.html';
+                
             } catch (error) {
                 console.error('Erro ao fazer login:', error);
                 
                 // Mostrar mensagem de erro
-                let errorMessage = 'Erro ao fazer login. Por favor, verifique suas credenciais.';
+                let errorMessage = 'Erro ao fazer login. Verifique suas credenciais.';
                 if (error.message) {
-                    errorMessage = error.message;
+                    if (error.message.includes('Invalid login credentials')) {
+                        errorMessage = 'Email ou password incorretos.';
+                    } else if (error.message.includes('Email not confirmed')) {
+                        errorMessage = 'Por favor, confirme seu email primeiro.';
+                    } else {
+                        errorMessage = error.message;
+                    }
                 }
                 
                 showError(errorMessage);
@@ -115,6 +122,24 @@
                 errorElement.style.display = 'none';
             }, 5000);
         }
+
+        // Verificar se o utilizador já está autenticado
+        async function checkAuthentication() {
+            if (!window.supabase) return;
+            
+            try {
+                const { data: { session } } = await window.supabase.auth.getSession();
+                if (session) {
+                    // Utilizador já está autenticado, redirecionar
+                    window.location.href = 'index.html';
+                }
+            } catch (error) {
+                console.error('Erro ao verificar autenticação:', error);
+            }
+        }
+
+        // Verificar autenticação quando a página carrega
+        setTimeout(checkAuthentication, 1000);
     </script>
 </body>
 </html>
