@@ -93,7 +93,7 @@ async function processExcelFile(file, type) {
                 const workbook = XLSX.read(data, { type: 'binary' });
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true });
                 
                 // Processar dados conforme o tipo
                 const processedData = processSheetData(jsonData, type);
@@ -187,7 +187,7 @@ function normalizeColumnName(header) {
 function processSalesOrderRecord(record) {
     return {
         licensePlate: cleanLicensePlate(record.licensePlate || record.matricula || record.placa),
-        bookingPrice: parseFloat(record.bookingPrice || record.preco || 0),
+        bookingPrice: parseNumber(record.bookingPrice || record.preco || 0),
         parkBrand: record.parkBrand || record.marca || '',
         driver: record.driver || record.condutor || '',
         paymentMethod: normalizePaymentMethod(record.paymentMethod || record.pagamento || ''),
@@ -204,7 +204,7 @@ function processDeliveryRecord(record) {
     return {
         licensePlate: cleanLicensePlate(record.licensePlate || record.matricula || record.placa),
         alocation: record.alocation || record.alocacao || '',
-        bookingPrice: parseFloat(record.bookingPrice || record.preco || 0),
+        bookingPrice: parseNumber(record.bookingPrice || record.preco || 0),
         parkBrand: record.parkBrand || record.marca || '',
         driver: record.driver || record.condutor || '',
         campaign: record.campaign || record.campanha || '',
@@ -220,8 +220,8 @@ function processCashRecord(record) {
         licensePlate: cleanLicensePlate(record.licensePlate || record.matricula || record.placa),
         driver: record.driver || record.condutor || record.condutorEntrega || '',
         paymentMethod: normalizePaymentMethod(record.paymentMethod || record.pagamento || ''),
-        bookingPrice: parseFloat(record.bookingPrice || record.preco || 0),
-        priceOnDelivery: parseFloat(record.priceOnDelivery || record.precoEntrega || record.bookingPrice || record.preco || 0),
+        bookingPrice: parseNumber(record.bookingPrice || record.preco || 0),
+        priceOnDelivery: parseNumber(record.priceOnDelivery || record.precoEntrega || record.bookingPrice || record.preco || 0),
         campaign: record.campaign || record.campanha || ''
     };
 }
@@ -230,6 +230,27 @@ function processCashRecord(record) {
 function cleanLicensePlate(plate) {
     if (!plate) return '';
     return plate.toString().toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+// Converter valores numéricos, aceitando vírgulas e separadores de milhar
+function parseNumber(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') return value;
+
+    let str = value.toString().replace(/[€\s]/g, '').trim();
+
+    if (str.includes(',') && str.includes('.')) {
+        if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
+            str = str.replace(/\./g, '').replace(',', '.');
+        } else {
+            str = str.replace(/,/g, '');
+        }
+    } else if (str.includes(',')) {
+        str = str.replace(',', '.');
+    }
+
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
 }
 
 // Normalizar método de pagamento
